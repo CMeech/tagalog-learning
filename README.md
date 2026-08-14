@@ -26,4 +26,6 @@ docker compose build
 docker compose run --rm app version
 ```
 
-`docker compose build` runs the complete Gradle build and test suite. OrbStack is the authoritative development test environment. See [Tagalog Anki Project.md](./Tagalog%20Anki%20Project.md) for the implementation playbook.
+`docker compose build` runs the complete Gradle build and test suite. OrbStack is the authoritative development test environment.
+
+For implementation work, start with the small [task context](docs/task-context.md), then read only the relevant [milestone](docs/milestones/). Stable decisions, conventions, and deferred work are linked from the task context.
