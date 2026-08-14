@@ -13,12 +13,12 @@ Goal: represent language concepts independently of storage and Anki.
 
 ## Tasks
 
-- [ ] Create the domain package structure.
-- [ ] Create entities.
-- [ ] Add entity validation.
-- [ ] Add unit tests.
+- [x] Create the domain package structure.
+- [x] Create entities.
+- [x] Add entity validation.
+- [x] Add unit tests.
 
 ## Validation
 
-- [ ] Invalid objects are rejected.
-- [ ] Domain tests pass.
+- [x] Invalid objects are rejected.
+- [x] Domain tests pass.
