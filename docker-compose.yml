@@ -4,4 +4,7 @@ services:
       context: .
     image: tagalog-learning:dev
     volumes:
-      - ./data:/app/data
+      - tagalog-data:/app/data
+
+volumes:
+  tagalog-data:

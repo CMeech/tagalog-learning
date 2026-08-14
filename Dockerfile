@@ -11,7 +11,8 @@ FROM eclipse-temurin:21-jre-alpine
 RUN addgroup --system tagalog && adduser --system --ingroup tagalog tagalog
 WORKDIR /app
 COPY --from=build --chown=tagalog:tagalog /workspace/build/install/tagalog/ ./
+RUN mkdir /app/data && chown tagalog:tagalog /app/data
 USER tagalog
 
 ENTRYPOINT ["/app/bin/tagalog"]
-CMD ["--help"]
+CMD ["init"]

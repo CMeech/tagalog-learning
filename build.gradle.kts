@@ -19,6 +19,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.5.18")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.14.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.14.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.14.2")
 }
 

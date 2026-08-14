@@ -1,15 +1,21 @@
 package ca.cashmclean.tagalog
 
+import ca.cashmclean.tagalog.cli.TagalogCommand
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.api.parallel.ResourceLock
 import picocli.CommandLine
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import java.nio.file.Path
 
 @ResourceLock("SYSTEM_OUT")
 class TagalogCommandTest {
+    @TempDir
+    lateinit var temporaryDirectory: Path
+
     @Test
     fun `root command displays help`() {
         val output = captureOutput { CommandLine(TagalogCommand()).execute() }
@@ -29,9 +35,22 @@ class TagalogCommandTest {
 
     @Test
     fun `all milestone one commands execute successfully`() {
-        listOf("init", "validate", "migrate").forEach { command ->
-            val output = captureOutput { CommandLine(TagalogCommand()).execute(command) }
-            assertEquals(0, output.exitCode, "Expected '$command' to succeed")
+        withTemporaryDatabase {
+            listOf("init", "validate", "migrate").forEach { command ->
+                val output = captureOutput { CommandLine(TagalogCommand()).execute(command) }
+                assertEquals(0, output.exitCode, "Expected '$command' to succeed")
+            }
+        }
+    }
+
+    private fun withTemporaryDatabase(action: () -> Unit) {
+        val property = "tagalog.db.path"
+        val previous = System.getProperty(property)
+        try {
+            System.setProperty(property, temporaryDirectory.resolve("tagalog.db").toString())
+            action()
+        } finally {
+            if (previous == null) System.clearProperty(property) else System.setProperty(property, previous)
         }
     }
 
