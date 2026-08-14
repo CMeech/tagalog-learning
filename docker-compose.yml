@@ -1,0 +1,7 @@
+services:
+  app:
+    build:
+      context: .
+    image: tagalog-learning:dev
+    volumes:
+      - ./data:/app/data

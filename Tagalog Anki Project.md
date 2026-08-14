@@ -1,369 +1,926 @@
-# Tagalog Anki Project
+# Tagalog Learning Platform
+# Implementation Playbook
 
-## Goals
+Version: 0.1.0
 
-The primary goal of this project is to build a long-term, automated language learning system for Tagalog.
-
-Objectives:
-
-- Strengthen everyday vocabulary.
-- Improve listening comprehension.
-- Learn grammar systematically.
-- Retain vocabulary through spaced repetition.
-- Generate cards automatically instead of manually.
-- Build a reusable language-learning pipeline.
+Status: Foundation Planning
 
 ---
 
-# Learning Philosophy
+# 1. Purpose
 
-Anki is **not** where new concepts are learned.
+This document is the implementation guide for the Tagalog Learning Platform.
+
+The purpose of this project is to create a personal language knowledge management system where:
+
+- SQLite is the source of truth.
+- Language knowledge is modeled independently from Anki.
+- Anki is treated as an export target.
+- Learning content is structured, validated, and reusable.
+- Future automation can generate learning materials without rebuilding the system.
+
+This document is designed to be consumed by:
+
+- Developers
+- Future maintainers
+- AI coding assistants
+- Automated implementation agents
+
+Every milestone contains:
+
+- Objectives
+- Tasks
+- Validation criteria
+- Definition of Done
+
+---
+
+# 2. Project Vision
+
+The system manages a learner's Tagalog knowledge.
+
+The application stores:
+
+- Vocabulary
+- Sentences
+- Grammar concepts
+- Lessons
+- Sources
+- Tags
+- Learning metadata
+
+The system does not replace Anki.
 
 Instead:
 
-Lessons
-↓
-Practice
-↓
-Immersion (music, YouTube, conversations)
-↓
-Anki reviews
-↓
-Long-term retention
+```
+Tagalog Learning Platform
+            |
+            |
+            v
 
-New concepts should first be encountered through lessons or real language use. Anki reinforces those concepts until they become automatic.
+Structured Knowledge Database
+
+            |
+            |
+            v
+
+Export Systems
+
+            |
+            |
+            v
+
+Anki
+```
 
 ---
 
-# One Deck
+# 3. Technology Decisions
 
-Use one deck:
+## Language
 
-🇵🇭 Tagalog
+Decision:
 
-Organization should come from note types and tags rather than multiple decks.
+Kotlin
+
+Reason:
+
+- Strong type safety
+- Excellent JVM ecosystem
+- Good interoperability
+- Concise syntax
+- Good tooling
+
+Status:
+
+Accepted
 
 ---
 
-# Note Types
+## CLI Framework
+
+Decision:
+
+Picocli
+
+Reason:
+
+- Mature JVM CLI framework
+- Supports command hierarchy
+- Works naturally with Kotlin
+
+Status:
+
+Accepted
+
+---
+
+## Database
+
+Decision:
+
+SQLite
+
+Reason:
+
+- Portable
+- No infrastructure required
+- Excellent for personal applications
+- Easy backups
+
+Status:
+
+Accepted
+
+---
+
+## Migration Tool
+
+Decision:
+
+Flyway
+
+Reason:
+
+- Version controlled schema changes
+- Repeatable migrations
+- Production-proven
+
+Status:
+
+Accepted
+
+---
+
+## Database Library
+
+Decision:
+
+Exposed
+
+Reason:
+
+- Kotlin-native
+- Type-safe SQL
+- Lightweight compared to Hibernate
+
+Status:
+
+Accepted
+
+---
+
+## Testing
+
+Decision:
+
+JUnit 5
+
+Reason:
+
+- Kotlin compatible
+- Mature ecosystem
+- Excellent IDE support
+
+Status:
+
+Accepted
+
+---
+
+## Development Environments
+
+The project is developed and tested in Docker containers using OrbStack as the local container runtime.
+
+- A host-installed JDK is not required.
+- Docker-compatible commands such as `docker compose` run through OrbStack.
+- The container image supplies the supported Java and Gradle environment.
+
+All development validation must pass through the OrbStack container workflow before changes are considered complete.
+
+Status:
+
+Accepted
+
+---
+
+## Audio Strategy
+
+Decision:
+
+Use AwesomeTTS inside Anki for Version 1.
+
+The application will not generate audio.
+
+The application stores:
+
+- Text
+- Sentences
+- Metadata
+
+Audio generation happens after export.
+
+Future support:
+
+- Azure TTS
+- OpenAI TTS
+- ElevenLabs
+- Local TTS engines
+
+Status:
+
+Accepted
+
+---
+
+# 4. Architecture
+
+The application follows a layered architecture.
+
+```
+CLI Layer
+
+    |
+    v
+
+Application Layer
+
+    |
+    v
+
+Domain Layer
+
+    |
+    v
+
+Infrastructure Layer
+
+    |
+    v
+
+SQLite Database
+```
+
+---
+
+## CLI Layer
+
+Responsibilities:
+
+- Parse commands
+- Validate arguments
+- Call application services
+- Display results
+
+Example:
+
+```
+tagalog validate
+tagalog migrate
+tagalog version
+```
+
+---
+
+## Application Layer
+
+Responsibilities:
+
+- Execute workflows
+- Coordinate domain operations
+- Handle use cases
+
+Examples:
+
+- Import vocabulary
+- Validate database
+- Generate exports
+
+---
+
+## Domain Layer
+
+Responsibilities:
+
+- Business concepts
+- Rules
+- Relationships
+
+Entities:
+
+- Vocabulary
+- Sentence
+- GrammarConcept
+- Lesson
+- Source
+- Tag
+
+---
+
+## Infrastructure Layer
+
+Responsibilities:
+
+- Database access
+- File access
+- External integrations
+
+Examples:
+
+- SQLite
+- Flyway
+- Exposed
+
+---
+
+# 5. Repository Structure
+
+Create:
+
+```
+tagalog-learning/
+
+├── README.md
+├── build.gradle.kts
+├── settings.gradle.kts
+├── Dockerfile
+├── docker-compose.yml
+
+├── docs/
+
+│   ├── architecture.md
+│   ├── domain-model.md
+│   ├── epics.md
+│   ├── user-stories.md
+│   ├── conventions.md
+│   └── implementation-playbook.md
+
+├── src/
+
+│   ├── main/
+
+│   │   ├── kotlin/
+
+│   │   └── resources/
+
+│   │       └── db/migration/
+
+│   └── test/
+
+└── .github/
+
+    └── workflows/
+```
+
+---
+
+# Milestone 1 — Project Foundation
+
+Goal:
+
+Create a runnable Kotlin CLI application.
+
+---
+
+## Tasks
+
+## 1.1 Create Gradle Project
+
+Checklist:
+
+- [x] Create Gradle Kotlin DSL project
+- [x] Configure Kotlin JVM plugin
+- [x] Configure Java version
+- [x] Add application plugin
+- [x] Document the container-managed JDK version
+
+Validation:
+
+- [x] The OrbStack build container uses the supported JDK
+- [x] The Gradle build succeeds in OrbStack
+
+---
+
+## 1.2 Configure Dependencies
+
+Add:
+
+- [x] Picocli
+- [x] SQLite JDBC
+- [x] Flyway
+- [x] Exposed
+- [x] JUnit 5
+- [x] Logging framework
+
+Validation:
+
+- [ ] Dependencies resolve
+- [ ] Application compiles
+
+---
+
+## 1.3 Create CLI
+
+Implement:
+
+```
+tagalog
+```
+
+Commands:
+
+```
+init
+version
+validate
+migrate
+```
+
+Validation:
+
+- [x] CLI starts
+- [x] Help output works
+- [x] Commands execute
+
+---
+
+## 1.4 Add Docker Support
+
+Development runtime:
+
+- [x] Use OrbStack to run Docker containers and Docker Compose
+
+Create:
+
+- [x] Dockerfile
+- [x] docker-compose.yml
+
+Validation:
+
+```
+docker compose up
+```
+
+passes.
+
+---
+
+## Milestone 1 Definition of Done
+
+Complete when:
+
+- [x] Project builds
+- [x] Tests pass in Docker through OrbStack
+- [x] CLI launches
+- [x] Docker works through OrbStack
+- [ ] CI passes
+
+---
+
+# Milestone 2 — Domain Model
+
+Goal:
+
+Represent language concepts.
+
+---
+
+# Entities
 
 ## Vocabulary
 
-Fields
+Represents:
 
-- Tagalog
-- English
-- Part of Speech
-- Root Word
-- Example Sentence
-- Example Translation
-- Word Audio
-- Sentence Audio
-- Image
-- Frequency Rank
-- Lesson
-- Source
-- Notes
-- Tags
+A Tagalog word or phrase.
 
-Cards Generated
+Attributes:
 
-1. Tagalog → English
-2. English → Tagalog
-3. Audio Recognition
-4. Sentence Recognition
-5. Cloze Sentence (optional)
+- ID
+- Tagalog text
+- English meaning
+- Root word
+- Part of speech
+- Difficulty
+- Frequency rank
 
 ---
 
 ## Sentence
 
-Fields
+Represents:
 
-- Tagalog Sentence
-- English Translation
-- Audio
-- Vocabulary Used
-- Grammar Concepts
-- Source
-- Notes
+A natural Tagalog sentence.
 
-Cards
+Attributes:
 
-- Audio → Sentence
-- Sentence → Meaning
-- Cloze Cards
-
----
-
-## Grammar
-
-Grammar is intentionally included as a first-class note type.
-
-Fields
-
-- Pattern Name
-- Explanation
-- Formula
-- Examples
-- Audio
-- Related Grammar
-- Common Mistakes
-- Lesson
-- Tags
-
-Example
-
-Pattern:
-
-mag + verb
-
-Explanation:
-
-Creates actor-focus verbs.
-
-Example:
-
-Magluluto ako bukas.
-
-Translation:
-
-I will cook tomorrow.
-
-Cards
-
-Pattern → Explanation
-
-Explanation → Pattern
-
-Fill-in-the-pattern
-
-Recognize correct usage
-
-Audio recognition
-
----
-
-## Listening
-
-Fields
-
-- Audio
-- Transcript
+- ID
+- Text
 - Translation
 - Difficulty
-- Source
-
-Cards
-
-Audio → Transcript
-
-Audio → Translation
-
-Transcript → Audio Recall
 
 ---
 
-# Tags
+## GrammarConcept
 
-Examples
+Represents:
 
-lesson1
+A grammar rule or pattern.
 
-lesson2
+Attributes:
 
-lesson3
-
-noun
-
-verb
-
-adjective
-
-grammar
-
-travel
-
-family
-
-shopping
-
-food
-
-frequency500
-
-frequency1000
-
-song
-
-youtube
-
-conversation
+- ID
+- Name
+- Description
+- Formula
 
 ---
 
-# Images
+## Lesson
 
-Images should primarily be used for:
+Represents:
 
-- nouns
-- food
-- objects
-- places
-- animals
-
-Images are generally unnecessary for abstract concepts or grammar.
+Where knowledge was introduced.
 
 ---
 
-# Audio
+## Source
 
-Every vocabulary item should ideally contain:
+Represents:
 
-Word audio
+Origin of knowledge.
 
-Sentence audio
+Examples:
 
-Native-quality pronunciation is strongly preferred.
-
----
-
-# Sources
-
-Track where every item originated.
-
-Possible values
-
-- Personal lesson
+- Teacher
 - Pimsleur
-- YouTube
-- Movie
 - Song
-- Conversation
-- AI Generated
+- Video
 
 ---
 
-# Difficulty
+## Tag
 
-Optional
+Represents:
 
-1
+Flexible categorization.
 
-2
+Examples:
 
-3
-
-or
-
-Easy
-
-Medium
-
-Hard
+- food
+- family
+- travel
 
 ---
 
-# Frequency
+# Tasks
 
-Include a frequency rank whenever possible.
+- [ ] Create domain package structure
+- [ ] Create entities
+- [ ] Add entity validation
+- [ ] Add unit tests
 
-This allows future filtering for:
+Validation:
 
-Top 500
-
-Top 1000
-
-Top 2000
-
-etc.
+- [ ] Invalid objects rejected
+- [ ] Domain tests pass
 
 ---
 
-# Long-Term Workflow
+# Milestone 3 — Database
 
-Lessons
+Goal:
 
-↓
-
-Vocabulary
-
-↓
-
-Grammar
-
-↓
-
-Sentences
-
-↓
-
-Immersion
-
-↓
-
-Review
+Persist domain data.
 
 ---
 
-# Automated Pipeline
+## Tasks
 
-The long-term goal is to completely automate Anki generation.
+- [ ] Create Flyway migration
+- [ ] Create tables
+- [ ] Create relationships
+- [ ] Add constraints
+- [ ] Configure Exposed mappings
 
-Pipeline
+Tables:
 
-Lessons
-↓
+```
+vocabulary
 
-SQLite Database
+sentence
 
-↓
+grammar_concept
 
-Validation
+lesson
 
-↓
+source
 
-AI enrichment
+tag
 
-↓
+vocabulary_tag
 
-Example sentence generation
+sentence_vocabulary
 
-↓
+sentence_grammar
+```
 
-Grammar linking
+Validation:
 
-↓
-
-Audio generation
-
-↓
-
-Media generation
-
-↓
-
-CSV Export
-
-↓
-
-Anki Import
+- [ ] Migration succeeds
+- [ ] Tables exist
+- [ ] Constraints work
 
 ---
 
-# Future Expansion
+# Milestone 4 — Application Services
 
-Potential future additions
+Goal:
 
-- Morphology analysis
-- Frequency statistics
+Create usable workflows.
+
+---
+
+Tasks:
+
+- [ ] Add vocabulary creation workflow
+- [ ] Add sentence workflow
+- [ ] Add grammar workflow
+- [ ] Add validation workflow
+
+Validation:
+
+- [ ] CLI can execute workflows
+- [ ] Errors handled correctly
+
+---
+
+# Milestone 5 — Export Foundation
+
+Goal:
+
+Prepare data for external systems.
+
+---
+
+Tasks:
+
+- [ ] Define exporter interface
+- [ ] Create export model
+- [ ] Create placeholder Anki exporter
+
+Validation:
+
+- [ ] Export interface works
+- [ ] Data transformation tested
+
+---
+
+# Deferred Features
+
+These features are intentionally postponed.
+
+They should not be implemented until the foundation is stable.
+
+---
+
+# Future Epic: AI Enrichment
+
+Status:
+
+Deferred
+
+Purpose:
+
+Generate:
+
+- Example sentences
+- Explanations
 - Related vocabulary
-- Synonyms
-- Antonyms
-- Minimal pairs
-- Pronunciation notes
-- IPA
-- Pitch/accent notes (if useful)
-- Multiple example sentences
-- Cloze generation
-- Grammar dependency graph
+- Grammar suggestions
+
+Prerequisites:
+
+- Stable domain model
+- Review workflow
+
+---
+
+# Future Epic: TTS Providers
+
+Status:
+
+Deferred
+
+Purpose:
+
+Move audio generation into the application.
+
+Possible providers:
+
+- Azure
+- OpenAI
+- ElevenLabs
+
+Current solution:
+
+AwesomeTTS in Anki.
+
+---
+
+# Future Epic: Repository Implementations
+
+Status:
+
+Deferred
+
+Purpose:
+
+Create full persistence abstraction.
+
+Prerequisite:
+
+Database schema finalized.
+
+---
+
+# Future Epic: CSV Import/Export
+
+Status:
+
+Deferred
+
+Purpose:
+
+Bulk content movement.
+
+---
+
+# Future Epic: Anki Package Generation
+
+Status:
+
+Deferred
+
+Purpose:
+
+Generate complete Anki packages automatically.
+
+---
+
+# Future Epic: Review Workflow
+
+Status:
+
+Deferred
+
+Purpose:
+
+Support:
+
+```
+Generated
+
+↓
+
+Needs Review
+
+↓
+
+Approved
+
+↓
+
+Exported
+```
+
+---
+
+# Future Epic: Media Management
+
+Status:
+
+Deferred
+
+Purpose:
+
+Manage:
+
+- Audio
+- Images
+- Files
+
+---
+
+# Future Epic: Domain Services
+
+Status:
+
+Deferred
+
+Purpose:
+
+Introduce richer business workflows.
+
+---
+
+# Testing Strategy
+
+Every feature requires:
+
+## Unit Tests
+
+Validate:
+
+- Domain behavior
+- Business rules
+
+---
+
+## Integration Tests
+
+Validate:
+
+- Database
+- Migration
+- CLI workflows
+
+---
+
+## Build Validation
+
+With OrbStack running as the Docker-compatible container runtime, build the application image:
+
+```
+docker compose build
+```
+
+The image build runs the complete Gradle build and test suite. Smoke-test the resulting CLI image with:
+
+```
+docker compose run --rm app --help
+docker compose run --rm app version
+```
+
+No host Java installation is required. OrbStack validation is the authoritative development test path.
+
+---
+
+# Development Conventions
+
+## Code
+
+Requirements:
+
+- Prefer immutable data classes
+- Keep domain logic outside infrastructure
+- Avoid unnecessary frameworks
+- Add tests with features
+
+---
+
+## Database
+
+Requirements:
+
+- Every schema change uses Flyway
+- Never modify existing migrations
+- Add new migrations
+
+---
+
+## Git
+
+Commit examples:
+
+```
+feat: add vocabulary entity
+
+test: add migration tests
+
+docs: update architecture
+```
+
+---
+
+# Definition of Complete Version 0.1
+
+The project is considered complete when:
+
+- [ ] Kotlin application runs
+- [ ] Docker runs
+- [ ] SQLite initializes
+- [ ] Flyway migrations execute
+- [ ] CLI works
+- [ ] Tests pass in Docker
+- [ ] Documentation exists
+- [ ] Domain model is implemented
+- [ ] Future roadmap is documented
+
+---
+
+# End State
+
+Version 0.1 provides a stable foundation.
+
+Future versions add intelligence and automation without requiring a redesign.

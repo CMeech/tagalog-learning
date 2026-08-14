@@ -1,20 +1,29 @@
-A project for setting up Anki to ingest Tagalog vocab and scripts for power-learning the language.
+# Tagalog Learning Platform
 
-The plan is to include audio generation as well via some API service.
+A Kotlin CLI for managing structured Tagalog learning material, with SQLite as the source of truth and Anki as an export target.
 
+## Prerequisites
 
-# Architecture
+- OrbStack for Docker-compatible development and testing on macOS
 
-SQLite
-    ↓
-Python/Go/Node application
-    ↓
-AI Provider
-    ↓
-TTS Provider
-    ↓
-Generate media
-    ↓
-Generate CSV
-    ↓
-Anki Import
+Java 21 and Gradle are supplied by the container images; no host Java installation is required.
+
+The installed application is named `tagalog` and currently provides these foundation commands:
+
+```text
+init
+version
+validate
+migrate
+```
+
+## Development with OrbStack
+
+Start OrbStack, ensure its Docker CLI integration is on your `PATH`, then run:
+
+```shell
+docker compose build
+docker compose run --rm app version
+```
+
+`docker compose build` runs the complete Gradle build and test suite. OrbStack is the authoritative development test environment. See [Tagalog Anki Project.md](./Tagalog%20Anki%20Project.md) for the implementation playbook.
