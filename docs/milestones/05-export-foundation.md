@@ -4,11 +4,11 @@ Goal: prepare data for external systems while keeping the domain independent of 
 
 ## Tasks
 
-- [ ] Define an exporter interface.
-- [ ] Create an export model.
-- [ ] Create a placeholder Anki exporter.
+- [x] Define an exporter interface.
+- [x] Create an export model.
+- [x] Create a placeholder Anki exporter.
 
 ## Validation
 
-- [ ] Export interface works.
-- [ ] Data transformation is tested.
+- [x] Export interface works.
+- [x] Data transformation is tested.
