@@ -4,12 +4,12 @@ Goal: create usable workflows.
 
 ## Tasks
 
-- [ ] Add vocabulary creation workflow.
-- [ ] Add sentence workflow.
-- [ ] Add grammar workflow.
-- [ ] Add validation workflow.
+- [x] Add vocabulary creation workflow.
+- [x] Add sentence workflow.
+- [x] Add grammar workflow.
+- [x] Add validation workflow.
 
 ## Validation
 
-- [ ] CLI can execute workflows.
-- [ ] Errors are handled correctly.
+- [x] CLI can execute workflows.
+- [x] Errors are handled correctly.

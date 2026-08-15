@@ -15,6 +15,9 @@ import java.util.concurrent.Callable
         VersionCommand::class,
         ValidateCommand::class,
         MigrateCommand::class,
+        VocabularyCommand::class,
+        SentenceCommand::class,
+        GrammarCommand::class,
     ],
 )
 class TagalogCommand : Callable<Int> {
