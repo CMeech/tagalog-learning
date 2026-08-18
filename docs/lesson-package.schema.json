@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cashmclean.ca/tagalog/lesson-package.schema.json",
+  "title": "Tagalog lesson package manifest",
+  "description": "Manifest for one version 1 Tagalog lesson package. Contract files are UTF-8 and NFC normalized.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "lesson", "sources"],
+  "properties": {
+    "schema_version": {
+      "description": "Lesson package contract version.",
+      "const": 1
+    },
+    "lesson": { "$ref": "#/$defs/lesson" },
+    "sources": {
+      "description": "Sources represented in this package. May be empty; source IDs must be unique.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/source" }
+    },
+    "default_source_id": {
+      "description": "Source applied to CSV rows with a blank source_id. When present, it must match an ID in sources.",
+      "$ref": "#/$defs/uuid"
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "nonBlank": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "lesson": {
+      "description": "The single lesson represented by this package.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "description": "Stable domain UUID for the lesson.", "$ref": "#/$defs/uuid" },
+        "name": { "description": "Lesson name.", "$ref": "#/$defs/nonBlank" },
+        "description": { "description": "Optional lesson description; no default.", "$ref": "#/$defs/nonBlank" }
+      }
+    },
+    "source": {
+      "description": "Provenance source used by package records.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "type"],
+      "properties": {
+        "id": { "description": "Stable domain UUID for the source.", "$ref": "#/$defs/uuid" },
+        "name": { "description": "Source name.", "$ref": "#/$defs/nonBlank" },
+        "type": {
+          "description": "Existing domain source type.",
+          "type": "string",
+          "enum": ["TEACHER", "COURSE", "BOOK", "SONG", "VIDEO", "WEBSITE", "OTHER"]
+        },
+        "reference": { "description": "Optional path, title, page, or URL; no default.", "$ref": "#/$defs/nonBlank" }
+      }
+    }
+  }
+}

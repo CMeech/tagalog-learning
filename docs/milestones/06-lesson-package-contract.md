@@ -3,6 +3,11 @@
 Goal: define the stable file contract that an agent can generate from source material and that the
 application can validate, import, and export without editorial workflow state.
 
+Contract artifacts: [`../lesson-package.md`](../lesson-package.md),
+[`../lesson-package.schema.json`](../lesson-package.schema.json),
+[`../anki-contract.md`](../anki-contract.md), and
+[`../lesson-package-verification.md`](../lesson-package-verification.md).
+
 ## Product workflow
 
 ```text
@@ -98,16 +103,16 @@ internal whitespace and embedded newlines are preserved according to standard CS
 
 ## Identity and repeat-import rules
 
-- [ ] The package UUID is the domain/database UUID; do not introduce a second external-key system.
-- [ ] A UUID absent from SQLite represents a new record.
-- [ ] An existing UUID with identical normalized content is unchanged.
-- [ ] An existing UUID with different content is a conflict unless import explicitly enables updates.
-- [ ] Updates replace the complete package-owned representation of the record, including tags and
+- [x] The package UUID is the domain/database UUID; do not introduce a second external-key system.
+- [x] A UUID absent from SQLite represents a new record.
+- [x] An existing UUID with identical normalized content is unchanged.
+- [x] An existing UUID with different content is a conflict unless import explicitly enables updates.
+- [x] Updates replace the complete package-owned representation of the record, including tags and
       sentence relationships.
-- [ ] Omitting a previously imported UUID from a later or corrected package leaves the SQLite record
+- [x] Omitting a previously imported UUID from a later or corrected package leaves the SQLite record
       unchanged; packages are incremental and never imply synchronization or deletion.
-- [ ] An exact content duplicate under a different UUID is a validation error with both IDs reported.
-- [ ] UUIDs remain stable when generated files are corrected.
+- [x] An exact content duplicate under a different UUID is a validation error with both IDs reported.
+- [x] UUIDs remain stable when generated files are corrected.
 
 ## Anki contract
 
@@ -117,8 +122,9 @@ so Anki can match existing notes when first-field updating is enabled.
 The user imports these files manually through Anki. Direct Anki automation and AnkiConnect are not
 part of this milestone.
 
-- Vocabulary fields: `ID`, `Tagalog`, `English`, `Root Word`, `Part of Speech`, `Difficulty`, `Tags`,
-  `Lesson`, `Source`.
+- Vocabulary logical TSV fields: `ID`, `Tagalog`, `English`, `Root Word`, `Part of Speech`,
+  `Difficulty`, `Tags`, `Lesson`, `Source`. `Tags` is Anki's reserved metadata column rather than a
+  custom note field; the exact importable note-type field order is documented in the Anki contract.
 - Sentence fields: `ID`, `Tagalog`, `English`, `Difficulty`, `Vocabulary`, `Grammar`, `Lesson`,
   `Source`.
 - Grammar fields: `ID`, `Name`, `Description`, `Formula`, `Examples`, `Lesson`, `Source`.
@@ -130,44 +136,44 @@ raw UUID lists. UUIDs remain the internal relationship keys.
 
 ### M6.1 — Freeze the authoring contract
 
-- [ ] Add a JSON Schema for `lesson.json` and document every property, default, and enum.
-- [ ] Add canonical header-only CSV templates under `examples/import/`.
-- [ ] Add a complete sample lesson package with Tagalog characters, relationships, tags, and source
+- [x] Add a JSON Schema for `lesson.json` and document every property, default, and enum.
+- [x] Add canonical header-only CSV templates under `examples/import/`.
+- [x] Add a complete sample lesson package with Tagalog characters, relationships, tags, and source
       provenance.
-- [ ] Document filename, UTF-8, NFC, UUID, quoting, whitespace, blank, list-delimiter, and maximum-size
+- [x] Document filename, UTF-8, NFC, UUID, quoting, whitespace, blank, list-delimiter, and maximum-size
       rules.
-- [ ] Document how an agent chooses stable UUIDs and preserves them while correcting a package.
-- [ ] Add a copyable generation prompt that requires this exact contract.
+- [x] Document how an agent chooses stable UUIDs and preserves them while correcting a package.
+- [x] Add a copyable generation prompt that requires this exact contract.
 
 ### M6.2 — Freeze the Anki contract
 
-- [ ] Document the three Anki note types and exact field order.
-- [ ] Provide copyable front/back card templates and shared CSS for vocabulary, sentences, and grammar.
-- [ ] Include native Anki TTS tags for Tagalog fields and explain device voice availability.
-- [ ] Document column mapping, first-field update matching, HTML handling, tags, and deck selection for
+- [x] Document the three Anki note types and exact field order.
+- [x] Provide copyable front/back card templates and shared CSS for vocabulary, sentences, and grammar.
+- [x] Include native Anki TTS tags for Tagalog fields and explain device voice availability.
+- [x] Document column mapping, first-field update matching, HTML handling, tags, and deck selection for
       each TSV file.
-- [ ] Document the short recurring manual-import procedure and how to locate a note by UUID when an
+- [x] Document the short recurring manual-import procedure and how to locate a note by UUID when an
       explicit database deletion must also be applied in Anki.
-- [ ] Define how empty optional values and readable relationship fields render.
-- [ ] Add expected TSV fixtures for the sample lesson package.
+- [x] Define how empty optional values and readable relationship fields render.
+- [x] Add expected TSV fixtures for the sample lesson package.
 
 ### M6.3 — Verify the contract before implementation
 
-- [ ] Walk the sample package through every identity, update, relationship, and duplicate rule on
+- [x] Walk the sample package through every identity, update, relationship, and duplicate rule on
       paper.
-- [ ] Verify that next week's sentence can reference a vocabulary UUID from an earlier package.
-- [ ] Verify that correcting and re-importing a package preserves the UUID used by Anki.
-- [ ] Verify that removing a row from a package does not delete or detach previously imported content.
-- [ ] Verify all desired card content can be produced from the manifest and three CSV files.
-- [ ] Record any intentional v1 omissions so the importer does not accidentally grow new formats.
+- [x] Verify that next week's sentence can reference a vocabulary UUID from an earlier package.
+- [x] Verify that correcting and re-importing a package preserves the UUID used by Anki.
+- [x] Verify that removing a row from a package does not delete or detach previously imported content.
+- [x] Verify all desired card content can be produced from the manifest and three CSV files.
+- [x] Record any intentional v1 omissions so the importer does not accidentally grow new formats.
 
 ## Definition of done
 
-- [ ] Another agent can generate a conforming package without reading application code.
-- [ ] Every package value has an unambiguous database and Anki destination.
-- [ ] Cross-package relationships and correction/re-import behavior are fully specified.
-- [ ] The sample package has deterministic expected Anki outputs.
-- [ ] No review or export status is part of the domain or persistence design.
+- [x] Another agent can generate a conforming package without reading application code.
+- [x] Every package value has an unambiguous database and Anki destination.
+- [x] Cross-package relationships and correction/re-import behavior are fully specified.
+- [x] The sample package has deterministic expected Anki outputs.
+- [x] No review or export status is part of the domain or persistence design.
 
 ## Version 1 omissions
 

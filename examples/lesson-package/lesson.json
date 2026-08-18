@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "lesson": {
+    "id": "10000000-0000-4000-8000-000000000001",
+    "name": "Pagbati at pagpapakilala",
+    "description": "Mga pangunahing pagbati at magalang na pagpapakilala."
+  },
+  "sources": [
+    {
+      "id": "20000000-0000-4000-8000-000000000001",
+      "name": "Usapang Tagalog, Aralin 1",
+      "type": "BOOK",
+      "reference": "Kabanata 1, pahina 3–5"
+    }
+  ],
+  "default_source_id": "20000000-0000-4000-8000-000000000001"
+}

@@ -1,0 +1,21 @@
+.card {
+  background: #faf8f2;
+  color: #24231f;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 20px;
+  line-height: 1.45;
+  margin: 0 auto;
+  max-width: 42rem;
+  padding: 1.5rem;
+  text-align: left;
+}
+
+.prompt, .answer {
+  font-size: 1.7rem;
+  font-weight: 650;
+}
+
+.meta { color: #666158; font-size: 0.8rem; margin-top: 1rem; }
+.label { color: #787168; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.detail { margin-top: 0.7rem; }
+hr#answer { border: 0; border-top: 1px solid #d8d2c7; margin: 1.2rem 0; }
