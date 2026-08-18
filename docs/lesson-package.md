@@ -12,6 +12,9 @@ directory containing `lesson.json` and at least one of `vocabulary.csv`, `senten
   property names are exact and case-sensitive; unspecified properties are invalid.
 - Each contract file may be at most 10 MiB (10,485,760 bytes), and the four contract files together
   may be at most 25 MiB (26,214,400 bytes). Ignored files do not count toward this limit.
+- Each CSV file may contain at most 100,000 data rows. A decoded manifest string or CSV field may
+  contain at most 1,048,576 Unicode characters. These limits are checked in addition to the byte
+  limits so malformed input cannot cause unbounded parser allocations or collections.
 - A package contains one lesson only. There is no ordering dependency among its rows.
 
 ## Manifest

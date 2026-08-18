@@ -37,15 +37,15 @@ tagalog lesson publish <package> --output <new-directory> [--update-existing]
 
 ### M7.1 — Parse packages into typed candidates
 
-- [ ] Add and pin one CSV library and one JSON/schema-validation library.
-- [ ] Create manifest and CSV candidate models separate from domain and persistence models.
-- [ ] Load only the recognized package files and require the Milestone 6 minimum layout.
-- [ ] Validate `schema_version` before interpreting the remainder of the package.
-- [ ] Normalize strings to NFC and apply the documented trimming/default rules exactly once.
-- [ ] Parse UUIDs, enums, integers, quoted fields, embedded newlines, CRLF, BOM input, and
+- [x] Add and pin one CSV library and one JSON/schema-validation library.
+- [x] Create manifest and CSV candidate models separate from domain and persistence models.
+- [x] Load only the recognized package files and require the Milestone 6 minimum layout.
+- [x] Validate `schema_version` before interpreting the remainder of the package.
+- [x] Normalize strings to NFC and apply the documented trimming/default rules exactly once.
+- [x] Parse UUIDs, enums, integers, quoted fields, embedded newlines, CRLF, BOM input, and
       pipe-separated lists.
-- [ ] Enforce documented file, row, and field size limits before allocating unbounded data.
-- [ ] Add parser tests using the canonical fixtures and malformed edge cases.
+- [x] Enforce documented file, row, and field size limits before allocating unbounded data.
+- [x] Add parser tests using the canonical fixtures and malformed edge cases.
 
 ### M7.2 — Implement read-only validation
 
