@@ -5,6 +5,7 @@ import kotlin.io.path.absolute
 
 data class DatabaseConfig(val path: Path) {
     val jdbcUrl: String = "jdbc:sqlite:${path.absolute()}?foreign_keys=on"
+    val readOnlyJdbcUrl: String = "jdbc:sqlite:file:${path.absolute()}?mode=ro&foreign_keys=on"
 
     companion object {
         private const val DATABASE_PATH_ENV = "TAGALOG_DB_PATH"

@@ -49,39 +49,66 @@ tagalog lesson publish <package> --output <new-directory> [--update-existing]
 
 ### M7.2 — Implement read-only validation
 
-- [ ] Add `tagalog lesson validate <package>`.
-- [ ] Validate complete headers before rows and report missing, extra, duplicate, and incorrectly
+- [x] Add `tagalog lesson validate <package>`.
+- [x] Validate complete headers before rows and report missing, extra, duplicate, and incorrectly
       cased columns.
-- [ ] Convert candidates into domain entities to reuse domain validation.
-- [ ] Collect all independent errors rather than stopping at the first bad row.
-- [ ] Report filename, one-based data-row number, column, safe supplied value, and correction guidance.
-- [ ] Enforce UUID uniqueness across the package and detect exact content duplicates under different
+- [x] Convert candidates into domain entities to reuse domain validation.
+- [x] Collect all independent errors rather than stopping at the first bad row.
+- [x] Report filename, one-based data-row number, column, safe supplied value, and correction guidance.
+- [x] Enforce UUID uniqueness across the package and detect exact content duplicates under different
       UUIDs in both the package and SQLite.
-- [ ] Resolve source and relationship UUIDs against the complete package plus existing SQLite records.
-- [ ] Distinguish inserts, unchanged records, conflicting updates, and warnings in text and JSON
+- [x] Resolve source and relationship UUIDs against the complete package plus existing SQLite records.
+- [x] Distinguish inserts, unchanged records, conflicting updates, and warnings in text and JSON
       results.
-- [ ] Guarantee validation opens no write transaction and add tests proving SQLite is unchanged.
+- [x] Guarantee validation opens no write transaction and add tests proving SQLite is unchanged.
 
-### M7.3 — Add persistence and import history
+### M7.3 — Persist the reusable knowledge graph and import history
 
-- [ ] Add Flyway migrations for successful import-run metadata and any constraints needed by the
-      frozen package contract; never alter V1.
-- [ ] Store import-run UUID, lesson UUID, package checksum, schema version, timestamp, and inserted,
-      updated, and unchanged counts.
+The database is a durable Tagalog knowledge collection, not a staging database for Anki. Vocabulary,
+sentences, and grammar concepts have global identities and may occur in many lessons. Lessons record
+where knowledge was encountered; they do not own or duplicate that knowledge. Sentence-to-vocabulary
+and sentence-to-grammar links remain durable semantic relationships that can be queried independently
+of any export format.
+
+- [ ] Add a Flyway migration for `lesson_vocabulary`, `lesson_sentence`, `lesson_grammar`, and
+      `lesson_source` associations; never alter V1. Backfill associations from V1 `lesson_id` and
+      `source_id` values so existing collections retain lesson membership and provenance.
+- [ ] Store source provenance on each lesson/entity association where applicable. Reusing the same
+      entity in a later lesson adds an association instead of changing the entity or causing a
+      content conflict.
+- [ ] Treat V1 entity `lesson_id` and `source_id` columns as legacy compatibility data after backfill;
+      new import and query code must use the association tables rather than assigning single owners.
+- [ ] Add read/query repository boundaries for lessons, vocabulary, sentences, grammar, and their
+      associations so later inspection, export, and generation workflows do not depend on import
+      internals or Anki concepts.
+- [ ] Add a Flyway migration for successful import-run metadata and constraints required by the
+      package contract.
+- [ ] Store import-run UUID, lesson UUID, package checksum, schema version, timestamp, and separate
+      counts for inserted, updated, unchanged, and newly related records.
 - [ ] Add `tagalog lesson import <package>`.
 - [ ] Treat an exact previously successful package checksum as an idempotent no-op that reports the
       original import run.
-- [ ] Insert new lesson, source, vocabulary, sentence, grammar, tag, and relationship records in one
-      transaction.
-- [ ] Reject differing content for an existing UUID unless `--update-existing` is present.
-- [ ] With `--update-existing`, replace complete package-owned fields and relationships atomically
-      after all candidates validate.
-- [ ] Treat packages as incremental: records previously associated with the lesson but absent from the
-      current package remain unchanged.
-- [ ] Preserve existing records referenced by the package but not defined by it.
-- [ ] Persist successful import history in the same transaction as content changes.
-- [ ] Add integration tests for insert, exact rerun, conflict, explicit update, rollback, cross-package
-      references, source defaults, tags, and relationship replacement.
+- [ ] Insert new lesson, source, vocabulary, sentence, grammar, tag, semantic relationships, lesson
+      associations, provenance, and import history in one transaction.
+- [ ] Compare existing UUIDs using global entity content only. Lesson membership and per-lesson source
+      provenance are associations and never make otherwise identical entity content conflict.
+- [ ] Reject differing global content for an existing UUID unless `--update-existing` is present.
+- [ ] With `--update-existing`, replace complete package-owned global fields, tags, and sentence
+      relationships atomically after all candidates validate. Replace the included entity's
+      association metadata for this lesson without deleting associations from other lessons.
+- [ ] Treat packages as incremental: records and associations omitted from a later package remain
+      unchanged. Package omission never means deletion or detachment.
+- [ ] Preserve existing records referenced by the package but not defined by it, while resolving the
+      new semantic relationships to those records.
+- [ ] Persist successful import history in the same transaction as content and relationship changes.
+- [ ] Add integration tests for insert, exact rerun, conflict, explicit update, rollback, source
+      defaults, tags, relationship replacement, and import history.
+- [ ] Add integration tests proving the same vocabulary, sentence, and grammar UUID can participate in
+      multiple lessons without duplication or conflict, and that cross-package sentence relationships
+      resolve to previously stored knowledge.
+- [ ] Add query tests proving the stored graph can answer both directions of core questions: sentences
+      using a vocabulary item or grammar concept, concepts and vocabulary used by a sentence, and all
+      lessons in which an entity occurs.
 
 ### M7.4 — Add collection inspection
 
@@ -152,6 +179,8 @@ tagalog lesson publish <package> --output <new-directory> [--update-existing]
 ## Version 1 decisions
 
 - Package UUIDs are database/domain UUIDs and Anki first-field identifiers.
+- Vocabulary, sentence, and grammar UUIDs identify global knowledge records. Lesson membership and
+  source provenance are many-to-many associations and are not part of global entity identity.
 - SQLite is the source of truth after import; packages are retained inputs for repeatable corrections.
 - Exact package reruns are no-ops, while content changes require `--update-existing`.
 - Successful imports are recorded for provenance; failed validations and dry runs are not persisted.

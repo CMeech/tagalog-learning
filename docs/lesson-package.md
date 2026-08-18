@@ -91,10 +91,13 @@ Header: `id,name,description,formula,source_id`
 - `source_id` is optional and uses the same defaulting rule.
 - Examples are represented only by sentence `grammar_ids` relationships.
 
-Every imported vocabulary, sentence, and grammar row is linked to the manifest lesson. A non-blank
-row `source_id` must resolve to a source in this manifest or one already stored in SQLite. Sources
-listed in the manifest are records subject to the same new/unchanged/conflict/update rules as the
-lesson and CSV records; sources are not implicitly scoped to the lesson.
+Every imported vocabulary, sentence, and grammar row gains an association with the manifest lesson.
+The knowledge record itself remains global and may be associated with many lessons. A row's resolved
+`source_id` is provenance for that entity's occurrence in this lesson rather than exclusive ownership
+of the entity. A non-blank `source_id` must resolve to a source in this manifest or one already stored
+in SQLite. Sources listed in the manifest are global records subject to the same
+new/unchanged/conflict/update rules as other global records; the manifest also associates them with
+the lesson.
 
 ## Normalized content and duplicate comparison
 
@@ -108,11 +111,15 @@ representation:
 
 - lesson: normalized `name` and `description`;
 - source: normalized `name`, `type`, and `reference`;
-- vocabulary: normalized scalar columns, resolved lesson UUID, resolved source UUID, and the sorted
-  set of tag names;
-- sentence: normalized scalar columns, resolved lesson UUID, resolved source UUID, and the sorted
-  vocabulary and grammar UUID sets;
-- grammar: normalized scalar columns, resolved lesson UUID, and resolved source UUID.
+- vocabulary: normalized scalar columns and the sorted set of tag names;
+- sentence: normalized scalar columns and the sorted vocabulary and grammar UUID sets;
+- grammar: normalized scalar columns.
+
+Lesson UUID and resolved source UUID are deliberately excluded from these global entity
+fingerprints. They form a lesson/entity association with per-lesson provenance. Reusing an existing
+entity UUID in a later lesson therefore adds knowledge-graph context without duplicating or changing
+the entity. Changing association provenance while correcting the same lesson is still an explicit
+package update, but it never removes associations belonging to other lessons.
 
 Two records with the same UUID compare these fingerprints to decide unchanged versus conflict. Two
 records of the same entity type with different UUIDs but equal fingerprints are exact-content

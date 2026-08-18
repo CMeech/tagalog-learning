@@ -131,6 +131,41 @@ class LessonPackageLoaderTest {
         assertThrows(LessonPackageException::class.java) { loader.load(temporaryDirectory) }
     }
 
+    @Test
+    fun `validation reports every kind of header problem before parsing rows`() {
+        writeMinimumManifest()
+        Files.writeString(
+            temporaryDirectory.resolve("grammar.csv"),
+            "id,Name,description,source_id,source_id,unexpected\n" +
+                "bad-id,,,,,\n",
+        )
+
+        val result = loader.loadForValidation(temporaryDirectory)
+
+        assertTrue(result.errors.any { it.message.contains("incorrect case") && it.guidance.contains("name") })
+        assertTrue(result.errors.any { it.message.contains("Missing column 'formula'") })
+        assertTrue(result.errors.any { it.message.contains("Duplicate column 'source_id'") })
+        assertTrue(result.errors.any { it.message.contains("Unexpected column 'unexpected'") })
+        assertTrue(result.errors.all { it.row == 0L })
+        assertTrue(result.errors.none { it.message.contains("UUID") }, "Rows must not be parsed after an invalid header")
+    }
+
+    @Test
+    fun `validation collects independent malformed rows`() {
+        writeMinimumManifest()
+        Files.writeString(
+            temporaryDirectory.resolve("vocabulary.csv"),
+            "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n" +
+                "bad-id,oo,yes,,OTHER,,,,\n" +
+                "30000000-0000-4000-8000-000000000001,hindi,no,,wrong-enum,,,,\n",
+        )
+
+        val result = loader.loadForValidation(temporaryDirectory)
+
+        assertEquals(listOf(1L, 2L), result.errors.map { it.row })
+        assertTrue(result.errors.all { it.filename == "vocabulary.csv" })
+    }
+
     private fun writeMinimumManifest(name: String = "Lesson") {
         Files.writeString(
             temporaryDirectory.resolve("lesson.json"),

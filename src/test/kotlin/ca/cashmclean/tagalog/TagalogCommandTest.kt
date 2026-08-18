@@ -109,6 +109,26 @@ class TagalogCommandTest {
         }
     }
 
+    @Test
+    fun `lesson validate supports text and json without changing SQLite`() {
+        withTemporaryDatabase {
+            assertEquals(0, execute("init").exitCode)
+            val packagePath = Path.of("examples/lesson-package").toAbsolutePath().toString()
+            val before = contentRowCount()
+
+            val text = execute("lesson", "validate", packagePath)
+            val json = execute("lesson", "validate", packagePath, "--format", "json")
+
+            assertEquals(0, text.exitCode)
+            assertTrue(text.text.contains("Lesson package is valid"))
+            assertTrue(text.text.contains("11 insert"))
+            assertEquals(0, json.exitCode)
+            assertTrue(json.text.contains("\"valid\":true"))
+            assertTrue(json.text.contains("\"lesson_id\":\"10000000-0000-4000-8000-000000000001\""))
+            assertEquals(before, contentRowCount(), "Read-only validation must not add or change content")
+        }
+    }
+
     private fun withTemporaryDatabase(action: () -> Unit) {
         val property = "tagalog.db.path"
         val previous = System.getProperty(property)
@@ -148,6 +168,11 @@ class TagalogCommandTest {
                 }
             }
         }
+
+    private fun contentRowCount(): Int = listOf(
+        "lesson", "source", "vocabulary", "sentence", "grammar_concept", "tag",
+        "vocabulary_tag", "sentence_vocabulary", "sentence_grammar",
+    ).sumOf(::rowCount)
 
     private fun databaseUrl() = "jdbc:sqlite:${temporaryDirectory.resolve("tagalog.db")}?foreign_keys=on"
 

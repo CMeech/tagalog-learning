@@ -19,7 +19,11 @@ import java.nio.file.Path
 import java.text.Normalizer
 import java.util.UUID
 
-class LessonPackageException(message: String, cause: Throwable? = null) : IllegalArgumentException(message, cause)
+class LessonPackageException(
+    message: String,
+    cause: Throwable? = null,
+    val diagnostics: List<PackageDiagnostic> = emptyList(),
+) : IllegalArgumentException(message, cause)
 
 class LessonPackageLoader(
     schemaStream: () -> java.io.InputStream = {
@@ -32,7 +36,12 @@ class LessonPackageLoader(
             .getSchema(objectMapper.readTree(input))
     }
 
-    fun load(packageDirectory: Path): LessonPackageCandidate {
+    fun load(packageDirectory: Path): LessonPackageCandidate = loadInternal(packageDirectory, null)
+
+    private fun loadInternal(
+        packageDirectory: Path,
+        validationErrors: MutableList<PackageDiagnostic>?,
+    ): LessonPackageCandidate {
         if (!Files.isDirectory(packageDirectory)) fail("package must be a directory: $packageDirectory")
 
         val files = RECOGNIZED_FILES.associateWith(packageDirectory::resolve)
@@ -49,13 +58,33 @@ class LessonPackageLoader(
             lesson = manifest.lesson,
             sources = manifest.sources,
             defaultSourceId = manifest.defaultSourceId,
-            vocabulary = parseOptional(files.getValue(VOCABULARY), VOCABULARY_HEADERS, ::parseVocabulary)
+            vocabulary = parseOptional(files.getValue(VOCABULARY), VOCABULARY_HEADERS, validationErrors, ::parseVocabulary)
                 .map { it.copy(sourceId = it.sourceId ?: manifest.defaultSourceId) },
-            sentences = parseOptional(files.getValue(SENTENCES), SENTENCE_HEADERS, ::parseSentence)
+            sentences = parseOptional(files.getValue(SENTENCES), SENTENCE_HEADERS, validationErrors, ::parseSentence)
                 .map { it.copy(sourceId = it.sourceId ?: manifest.defaultSourceId) },
-            grammar = parseOptional(files.getValue(GRAMMAR), GRAMMAR_HEADERS, ::parseGrammar)
+            grammar = parseOptional(files.getValue(GRAMMAR), GRAMMAR_HEADERS, validationErrors, ::parseGrammar)
                 .map { it.copy(sourceId = it.sourceId ?: manifest.defaultSourceId) },
         )
+    }
+
+    fun loadForValidation(packageDirectory: Path): LessonPackageLoadResult {
+        val errors = mutableListOf<PackageDiagnostic>()
+        return try {
+            LessonPackageLoadResult(loadInternal(packageDirectory, errors), errors)
+        } catch (exception: LessonPackageException) {
+            LessonPackageLoadResult(
+                null,
+                errors + exception.diagnostics.ifEmpty {
+                    listOf(
+                        PackageDiagnostic(
+                            filename = filenameFrom(exception.message),
+                            message = exception.message ?: "Invalid lesson package",
+                            guidance = "Correct the package input and validate it again.",
+                        ),
+                    )
+                },
+            )
+        }
     }
 
     private data class ManifestCandidate(
@@ -109,10 +138,16 @@ class LessonPackageLoader(
     private fun <T> parseOptional(
         path: Path,
         expectedHeaders: List<String>,
+        validationErrors: MutableList<PackageDiagnostic>?,
         convert: (CSVRecord, String) -> T,
-    ): List<T> = if (Files.isRegularFile(path)) parseCsv(path, expectedHeaders, convert) else emptyList()
+    ): List<T> = if (Files.isRegularFile(path)) parseCsv(path, expectedHeaders, validationErrors, convert) else emptyList()
 
-    private fun <T> parseCsv(path: Path, expectedHeaders: List<String>, convert: (CSVRecord, String) -> T): List<T> {
+    private fun <T> parseCsv(
+        path: Path,
+        expectedHeaders: List<String>,
+        validationErrors: MutableList<PackageDiagnostic>?,
+        convert: (CSVRecord, String) -> T,
+    ): List<T> {
         val bytes = Files.readAllBytes(path)
         rejectBom(bytes, path.fileName.toString())
         val reader = InputStreamReader(bytes.inputStream(), strictUtf8Decoder())
@@ -121,21 +156,45 @@ class LessonPackageLoader(
                 val iterator = parser.iterator()
                 if (!iterator.hasNext()) fail("${path.fileName} is empty")
                 val headers = iterator.next().toList()
-                if (headers != expectedHeaders) fail("${path.fileName} header does not match the package contract")
+                if (headers != expectedHeaders) {
+                    val exception = headerException(path.fileName.toString(), headers, expectedHeaders)
+                    if (validationErrors == null) throw exception
+                    validationErrors += exception.diagnostics
+                    return emptyList()
+                }
 
                 val result = ArrayList<T>()
                 while (iterator.hasNext()) {
                     if (result.size >= MAX_DATA_ROWS) fail("${path.fileName} exceeds $MAX_DATA_ROWS data rows")
                     val record = iterator.next()
                     if (record.size() != expectedHeaders.size) {
-                        fail("${path.fileName} row ${record.recordNumber} has ${record.size()} fields; expected ${expectedHeaders.size}")
+                        val message = "${path.fileName} row ${record.recordNumber - 1} has ${record.size()} fields; expected ${expectedHeaders.size}"
+                        if (validationErrors == null) fail(message)
+                        validationErrors += PackageDiagnostic(
+                            path.fileName.toString(), record.recordNumber - 1, null, null, message,
+                            "Add or remove fields so the row matches the complete header.",
+                        )
+                        continue
                     }
+                    var oversized = false
                     record.forEachIndexed { index, value ->
                         if (value.length > MAX_FIELD_CHARS) {
-                            fail("${path.fileName} row ${record.recordNumber} field ${expectedHeaders[index]} exceeds $MAX_FIELD_CHARS characters")
+                            val message = "${path.fileName} row ${record.recordNumber - 1} field ${expectedHeaders[index]} exceeds $MAX_FIELD_CHARS characters"
+                            if (validationErrors == null) fail(message)
+                            validationErrors += PackageDiagnostic(
+                                path.fileName.toString(), record.recordNumber - 1, expectedHeaders[index], null, message,
+                                "Shorten this field to the documented maximum.",
+                            )
+                            oversized = true
                         }
                     }
-                    result += convert(record, path.fileName.toString())
+                    if (oversized) continue
+                    try {
+                        result += convert(record, path.fileName.toString())
+                    } catch (exception: LessonPackageException) {
+                        if (validationErrors == null) throw exception
+                        validationErrors += rowDiagnostic(path.fileName.toString(), record, expectedHeaders, exception)
+                    }
                 }
                 return result
             }
@@ -146,34 +205,52 @@ class LessonPackageLoader(
         }
     }
 
+    private fun rowDiagnostic(
+        filename: String,
+        record: CSVRecord,
+        headers: List<String>,
+        exception: LessonPackageException,
+    ): PackageDiagnostic {
+        val column = headers.firstOrNull { exception.message?.contains(it) == true }
+        val index = column?.let(headers::indexOf)?.takeIf { it in 0 until record.size() }
+        return PackageDiagnostic(
+            filename = filename,
+            row = record.recordNumber - 1,
+            column = column,
+            value = PackageDiagnostic.safeValue(index?.let(record::get)),
+            message = exception.message ?: "Invalid row value.",
+            guidance = "Correct this field to match the documented package contract.",
+        )
+    }
+
     private fun parseVocabulary(row: CSVRecord, filename: String) = VocabularyCandidate(
-        id = uuid(row.scalar(0), "$filename row ${row.recordNumber} id"),
+        id = uuid(row.scalar(0), "$filename row ${row.recordNumber - 1} id"),
         tagalog = row.required(1, filename, "tagalog"),
         english = row.required(2, filename, "english"),
         rootWord = row.optional(3),
-        partOfSpeech = enumValue(row.scalar(4), "$filename row ${row.recordNumber} part_of_speech"),
-        difficulty = row.optional(5)?.let { enumValue(it, "$filename row ${row.recordNumber} difficulty") } ?: Difficulty.BEGINNER,
-        frequencyRank = row.optional(6)?.let { positiveInteger(it, "$filename row ${row.recordNumber} frequency_rank") },
-        sourceId = row.optional(7)?.let { uuid(it, "$filename row ${row.recordNumber} source_id") },
-        tags = list(row.scalar(8), "$filename row ${row.recordNumber} tags") { it },
+        partOfSpeech = enumValue(row.scalar(4), "$filename row ${row.recordNumber - 1} part_of_speech"),
+        difficulty = row.optional(5)?.let { enumValue(it, "$filename row ${row.recordNumber - 1} difficulty") } ?: Difficulty.BEGINNER,
+        frequencyRank = row.optional(6)?.let { positiveInteger(it, "$filename row ${row.recordNumber - 1} frequency_rank") },
+        sourceId = row.optional(7)?.let { uuid(it, "$filename row ${row.recordNumber - 1} source_id") },
+        tags = list(row.scalar(8), "$filename row ${row.recordNumber - 1} tags") { it },
     )
 
     private fun parseSentence(row: CSVRecord, filename: String) = SentenceCandidate(
-        id = uuid(row.scalar(0), "$filename row ${row.recordNumber} id"),
+        id = uuid(row.scalar(0), "$filename row ${row.recordNumber - 1} id"),
         text = row.required(1, filename, "text"),
         translation = row.required(2, filename, "translation"),
-        difficulty = row.optional(3)?.let { enumValue(it, "$filename row ${row.recordNumber} difficulty") } ?: Difficulty.BEGINNER,
-        sourceId = row.optional(4)?.let { uuid(it, "$filename row ${row.recordNumber} source_id") },
-        vocabularyIds = list(row.scalar(5), "$filename row ${row.recordNumber} vocabulary_ids") { uuid(it, "vocabulary_ids") },
-        grammarIds = list(row.scalar(6), "$filename row ${row.recordNumber} grammar_ids") { uuid(it, "grammar_ids") },
+        difficulty = row.optional(3)?.let { enumValue(it, "$filename row ${row.recordNumber - 1} difficulty") } ?: Difficulty.BEGINNER,
+        sourceId = row.optional(4)?.let { uuid(it, "$filename row ${row.recordNumber - 1} source_id") },
+        vocabularyIds = list(row.scalar(5), "$filename row ${row.recordNumber - 1} vocabulary_ids") { uuid(it, "vocabulary_ids") },
+        grammarIds = list(row.scalar(6), "$filename row ${row.recordNumber - 1} grammar_ids") { uuid(it, "grammar_ids") },
     )
 
     private fun parseGrammar(row: CSVRecord, filename: String) = GrammarCandidate(
-        id = uuid(row.scalar(0), "$filename row ${row.recordNumber} id"),
+        id = uuid(row.scalar(0), "$filename row ${row.recordNumber - 1} id"),
         name = row.required(1, filename, "name"),
         description = row.required(2, filename, "description"),
         formula = row.required(3, filename, "formula"),
-        sourceId = row.optional(4)?.let { uuid(it, "$filename row ${row.recordNumber} source_id") },
+        sourceId = row.optional(4)?.let { uuid(it, "$filename row ${row.recordNumber - 1} source_id") },
     )
 
     private fun enforceFileLimits(paths: List<Path>) {
@@ -208,7 +285,7 @@ class LessonPackageLoader(
     private fun CSVRecord.scalar(index: Int): String = normalize(get(index))
     private fun CSVRecord.optional(index: Int): String? = scalar(index).ifBlank { null }
     private fun CSVRecord.required(index: Int, file: String, column: String): String =
-        scalar(index).also { if (it.isBlank()) fail("$file row $recordNumber $column must not be blank") }
+        scalar(index).also { if (it.isBlank()) fail("$file row ${recordNumber - 1} $column must not be blank") }
 
     private fun JsonNode.text(name: String): String = get(name).asText()
     private fun JsonNode.optionalText(name: String): String? = get(name)?.asText()?.ifBlank { null }
@@ -253,6 +330,48 @@ class LessonPackageLoader(
             fail("$filename must not contain a UTF-8 byte-order mark")
         }
     }
+
+    private fun headerException(filename: String, actual: List<String>, expected: List<String>): LessonPackageException {
+        val duplicates = actual.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+        val exact = actual.toSet()
+        val missing = expected.filterNot(exact::contains)
+        val extra = actual.filterNot(expected.toSet()::contains)
+        val diagnostics = buildList {
+            duplicates.forEach { header ->
+                add(headerDiagnostic(filename, header, "Duplicate column '$header'.", "Include each documented column exactly once."))
+            }
+            missing.forEach { header ->
+                val caseVariant = actual.firstOrNull { it.equals(header, ignoreCase = true) }
+                if (caseVariant != null) {
+                    add(headerDiagnostic(filename, caseVariant, "Column '$caseVariant' has incorrect case.", "Rename it to '$header'."))
+                } else {
+                    add(headerDiagnostic(filename, header, "Missing column '$header'.", "Add '$header' in the documented position."))
+                }
+            }
+            extra.filterNot { supplied -> expected.any { it.equals(supplied, ignoreCase = true) } }.forEach { header ->
+                add(headerDiagnostic(filename, header, "Unexpected column '$header'.", "Remove this column."))
+            }
+            if (isOnlyOrderMismatch(actual, expected)) {
+                add(headerDiagnostic(filename, null, "Columns are in the wrong order.", "Use: ${expected.joinToString(",")}"))
+            }
+        }
+        return LessonPackageException("$filename header does not match the package contract", diagnostics = diagnostics)
+    }
+
+    private fun headerDiagnostic(filename: String, value: String?, message: String, guidance: String) = PackageDiagnostic(
+        filename = filename,
+        row = 0,
+        column = value,
+        value = PackageDiagnostic.safeValue(value),
+        message = message,
+        guidance = guidance,
+    )
+
+    private fun isOnlyOrderMismatch(actual: List<String>, expected: List<String>) =
+        actual.size == expected.size && actual.toSet() == expected.toSet() && actual != expected
+
+    private fun filenameFrom(message: String?): String =
+        RECOGNIZED_FILES.firstOrNull { message?.contains(it) == true } ?: "package"
 
     companion object {
         const val MAX_FILE_BYTES = 10_485_760L

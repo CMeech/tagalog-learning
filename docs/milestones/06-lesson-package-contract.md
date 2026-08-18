@@ -109,6 +109,9 @@ internal whitespace and embedded newlines are preserved according to standard CS
 - [x] An existing UUID with different content is a conflict unless import explicitly enables updates.
 - [x] Updates replace the complete package-owned representation of the record, including tags and
       sentence relationships.
+- [x] Vocabulary, sentence, and grammar identities are global. Lesson membership and source
+      provenance are associations, so reusing an entity in another lesson does not change its content
+      identity or replace earlier lesson associations.
 - [x] Omitting a previously imported UUID from a later or corrected package leaves the SQLite record
       unchanged; packages are incremental and never imply synchronization or deletion.
 - [x] An exact content duplicate under a different UUID is a validation error with both IDs reported.
