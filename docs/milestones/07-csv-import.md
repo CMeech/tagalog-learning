@@ -38,7 +38,7 @@ tagalog lesson publish <package> --output <new-directory> [--update-existing]
 ### M7.1 — Parse packages into typed candidates
 
 - [x] Add and pin one CSV library and one JSON/schema-validation library.
-- [x] Create manifest and CSV candidate models separate from domain and persistence models.
+- [x] Create lesson metadata and CSV candidate models separate from domain and persistence models.
 - [x] Load only the recognized package files and require the Milestone 6 minimum layout.
 - [x] Validate `schema_version` before interpreting the remainder of the package.
 - [x] Normalize strings to NFC and apply the documented trimming/default rules exactly once.
@@ -113,7 +113,7 @@ of any export format.
 ### M7.4 — Add collection inspection
 
 - [ ] Add `tagalog lesson list` with deterministic ordering and text/JSON output.
-- [ ] Add `tagalog lesson show <lesson-id>` with manifest metadata, sources, entity counts, and import
+- [ ] Add `tagalog lesson show <lesson-id>` with lesson metadata, sources, entity counts, and import
       history.
 - [ ] Include record UUIDs and readable relationship summaries so imported data can be diagnosed.
 - [ ] Add entity-level `show <id>` commands where necessary to inspect complete stored content.

@@ -23,7 +23,7 @@ internal object PackageIdentityValidator {
         candidate.defaultSourceId?.takeIf { default -> candidate.sources.none { it.id == default } }?.let { default ->
             errors += packageDiagnostic(
                 "lesson.json", null, "default_source_id", default.toString(),
-                "Default source is not defined in this manifest.",
+                "Default source is not defined in this lesson metadata.",
                 "Add the source to sources or remove default_source_id.",
             )
         }

@@ -60,7 +60,7 @@ exports, and Anki updates.
 ```
 
 `sources` may be empty and `default_source_id` may be omitted. A supplied default must identify a
-source in the manifest. Source types use the existing domain enum.
+source in the lesson metadata. Source types use the existing domain enum.
 
 ## CSV contracts
 
@@ -97,7 +97,7 @@ id,name,description,formula,source_id
 - `source_id` is optional.
 - Grammar examples are derived from sentence relationships rather than duplicated in this file.
 
-When `source_id` is blank, the manifest's `default_source_id` applies. Pipe-separated values may not
+When `source_id` is blank, the metadata's `default_source_id` applies. Pipe-separated values may not
 contain literal pipes. Repeated values in a list are invalid. Scalar values are trimmed; meaningful
 internal whitespace and embedded newlines are preserved according to standard CSV quoting rules.
 
@@ -167,7 +167,7 @@ raw UUID lists. UUIDs remain the internal relationship keys.
 - [x] Verify that next week's sentence can reference a vocabulary UUID from an earlier package.
 - [x] Verify that correcting and re-importing a package preserves the UUID used by Anki.
 - [x] Verify that removing a row from a package does not delete or detach previously imported content.
-- [x] Verify all desired card content can be produced from the manifest and three CSV files.
+- [x] Verify all desired card content can be produced from the metadata and three CSV files.
 - [x] Record any intentional v1 omissions so the importer does not accidentally grow new formats.
 
 ## Definition of done

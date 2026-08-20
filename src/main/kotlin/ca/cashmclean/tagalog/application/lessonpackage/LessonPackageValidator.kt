@@ -1,0 +1,30 @@
+package ca.cashmclean.tagalog.application.lessonpackage
+
+import java.nio.file.Path
+
+class LessonPackageValidator(
+    private val loader: LessonPackageLoader,
+    private val repositories: KnowledgeRepositories,
+) {
+    fun validate(packageDirectory: Path): LessonPackageValidationResult {
+        val loaded = loader.read(packageDirectory)
+        val candidate = loaded.lessonPackage
+            ?: return LessonPackageValidationResult(null, loaded.diagnostics, emptyList(), emptyList())
+        return validate(candidate, repositories.readStoredKnowledge(), loaded.diagnostics)
+    }
+
+    fun validate(
+        candidate: LessonPackageCandidate,
+        storedKnowledge: StoredLessonPackageSnapshot = repositories.readStoredKnowledge(),
+        loadErrors: List<PackageDiagnostic> = emptyList(),
+    ): LessonPackageValidationResult {
+        val errors = loadErrors.toMutableList()
+        val assessments = mutableListOf<CandidateAssessment>()
+
+        PackageIdentityValidator.validate(candidate, errors)
+        PackageRelationshipValidator.validate(candidate, storedKnowledge, errors)
+        PackageContentValidator.validate(candidate, storedKnowledge, errors, assessments)
+
+        return LessonPackageValidationResult(candidate.lesson.id, errors, emptyList(), assessments)
+    }
+}

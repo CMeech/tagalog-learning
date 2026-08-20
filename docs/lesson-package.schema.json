@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cashmclean.ca/tagalog/lesson-package.schema.json",
-  "title": "Tagalog lesson package manifest",
+  "title": "Tagalog lesson package metadata",
   "description": "Manifest for one version 1 Tagalog lesson package. Contract files are UTF-8 and NFC normalized.",
   "type": "object",
   "additionalProperties": false,

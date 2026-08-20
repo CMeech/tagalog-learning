@@ -5,7 +5,7 @@ import ca.cashmclean.tagalog.application.lessonpackage.LessonPackageValidationRe
 import ca.cashmclean.tagalog.application.lessonpackage.LessonPackageValidator
 import ca.cashmclean.tagalog.application.lessonpackage.PackageDiagnostic
 import ca.cashmclean.tagalog.infrastructure.database.DatabaseConfig
-import ca.cashmclean.tagalog.infrastructure.database.LessonPackageSnapshotReader
+import ca.cashmclean.tagalog.infrastructure.database.SqliteKnowledgeRepositories
 import com.fasterxml.jackson.databind.ObjectMapper
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
@@ -27,7 +27,7 @@ class ValidateLessonCommand : java.util.concurrent.Callable<Int> {
 
     override fun call(): Int {
         val config = DatabaseConfig.fromEnvironment()
-        val validator = LessonPackageValidator(LessonPackageLoader()) { LessonPackageSnapshotReader(config).read() }
+        val validator = LessonPackageValidator(LessonPackageLoader(), SqliteKnowledgeRepositories(config).create())
         val result = validator.validate(packageDirectory)
         when (format) {
             OutputFormat.text -> printText(result)

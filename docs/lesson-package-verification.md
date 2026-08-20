@@ -29,7 +29,7 @@ This is the pre-implementation walkthrough for contract version 1. It uses the p
    corrections never generate another UUID. This preserves database identity and Anki scheduling.
 9. **Relationships:** every sample sentence reference resolves to the corresponding vocabulary and
    grammar record. The expected TSVs render words, names, and example sentences rather than IDs.
-10. **Default provenance:** every blank sample `source_id` resolves to manifest source `2000…0001`.
+10. **Default provenance:** every blank sample `source_id` resolves to metadata source `2000…0001`.
 
 ## Cross-package scenario
 
@@ -44,9 +44,9 @@ when its entity type is wrong.
 - Vocabulary cards obtain their ID, front, meaning, root, part of speech, difficulty, and tags from
   `vocabulary.csv`; lesson and readable source values come from `lesson.json`.
 - Sentence cards obtain their ID, two faces, and difficulty from `sentences.csv`; readable vocabulary
-  and grammar are resolved through its UUID lists; lesson and source come from the manifest.
+  and grammar are resolved through its UUID lists; lesson and source come from the metadata.
 - Grammar cards obtain ID, name, description, and formula from `grammar.csv`; examples are the
-  Tagalog text of sentences that refer to each grammar ID; lesson and source come from the manifest.
+  Tagalog text of sentences that refer to each grammar ID; lesson and source come from the metadata.
 - Optional and empty relationship rendering is specified in the Anki contract. No desired card field
   requires application code knowledge or data outside the four package files (except an explicitly
   allowed relationship to a previously imported SQLite record).
@@ -64,14 +64,14 @@ when its entity type is wrong.
 | `sources[].type` | `Source.type` | Not exported in v1. |
 | `sources[].reference` | `Source.reference` | Appended to the readable `Source` field when present. |
 | `default_source_id` | Import-time default for blank row source IDs. | Indirectly determines `Source`. |
-| Vocabulary scalar columns | `Vocabulary` fields plus the manifest `Lesson.id` relationship | Matching vocabulary fields, except `frequency_rank`, which is database-only in v1. |
+| Vocabulary scalar columns | `Vocabulary` fields plus the metadata `Lesson.id` relationship | Matching vocabulary fields, except `frequency_rank`, which is database-only in v1. |
 | Vocabulary `source_id` | Vocabulary-to-source reference | Readable `Source`. |
 | Vocabulary `tags` | Vocabulary-to-tag relationships and `Tag.name` | Anki tags metadata. |
-| Sentence scalar columns | `Sentence` fields plus the manifest `Lesson.id` relationship | Matching sentence fields. |
+| Sentence scalar columns | `Sentence` fields plus the metadata `Lesson.id` relationship | Matching sentence fields. |
 | Sentence `source_id` | Sentence-to-source reference | Readable `Source`. |
 | Sentence `vocabulary_ids` | Sentence-to-vocabulary relationships | Readable `Vocabulary`. |
 | Sentence `grammar_ids` | Sentence-to-grammar relationships | Readable `Grammar`; inversely supplies grammar `Examples`. |
-| Grammar scalar columns | `GrammarConcept` fields plus the manifest `Lesson.id` relationship | Matching grammar fields. |
+| Grammar scalar columns | `GrammarConcept` fields plus the metadata `Lesson.id` relationship | Matching grammar fields. |
 | Grammar `source_id` | Grammar-to-source reference | Readable `Source`. |
 
 Values explicitly listed as not exported remain durable SQLite knowledge; no package value is
@@ -79,7 +79,7 @@ silently discarded during import.
 
 ## Intentional version 1 omissions
 
-Version 1 accepts only one manifest plus the three named CSV shapes. It does not accept `.apkg`,
+Version 1 accepts only one metadata file plus the three named CSV shapes. It does not accept `.apkg`,
 AnkiConnect/direct automation, stored or provider-generated audio, multiple lessons, literal pipes in
 list items, alternate delimiters, alternate headers or filename aliases, embedded editorial/review or
 export status, deletion/synchronization semantics, or automated linguistic judgment. Unknown files

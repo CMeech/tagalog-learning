@@ -86,5 +86,5 @@ class LessonPackageValidatorTest {
     }
 
     private fun validator(snapshot: StoredLessonPackageSnapshot = StoredLessonPackageSnapshot()) =
-        LessonPackageValidator(LessonPackageLoader()) { snapshot }
+        LessonPackageValidator(LessonPackageLoader(), KnowledgeRepositories.containing(snapshot))
 }

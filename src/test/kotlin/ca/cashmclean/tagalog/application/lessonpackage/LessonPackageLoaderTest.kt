@@ -33,7 +33,7 @@ class LessonPackageLoaderTest {
 
     @Test
     fun `normalizes and trims strings once while preserving internal content`() {
-        writeMinimumManifest(name = "  Cafe\u0301 lesson  ")
+        writeMinimumMetadata(name = "  Cafe\u0301 lesson  ")
         Files.writeString(
             temporaryDirectory.resolve("sentences.csv"),
             "id,text,translation,difficulty,source_id,vocabulary_ids,grammar_ids\r\n" +
@@ -50,7 +50,7 @@ class LessonPackageLoaderTest {
 
     @Test
     fun `ignores unknown files but requires a recognized csv`() {
-        writeMinimumManifest()
+        writeMinimumMetadata()
         Files.writeString(temporaryDirectory.resolve("notes.md"), "working notes")
 
         val error = assertThrows(LessonPackageException::class.java) { loader.load(temporaryDirectory) }
@@ -59,7 +59,7 @@ class LessonPackageLoaderTest {
     }
 
     @Test
-    fun `validates schema version before other manifest fields`() {
+    fun `validates schema version before other metadata fields`() {
         Files.writeString(temporaryDirectory.resolve("lesson.json"), """{"schema_version":2}""")
         writeHeaderOnlyVocabulary()
 
@@ -70,7 +70,7 @@ class LessonPackageLoaderTest {
 
     @Test
     fun `rejects byte order marks explicitly`() {
-        writeMinimumManifest()
+        writeMinimumMetadata()
         val csv = "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n"
         Files.write(temporaryDirectory.resolve("vocabulary.csv"), byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + csv.toByteArray())
 
@@ -81,7 +81,7 @@ class LessonPackageLoaderTest {
 
     @Test
     fun `parses quoted commas quotes crlf lists enums and integers`() {
-        writeMinimumManifest()
+        writeMinimumMetadata()
         Files.writeString(
             temporaryDirectory.resolve("vocabulary.csv"),
             "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\r\n" +
@@ -98,7 +98,7 @@ class LessonPackageLoaderTest {
 
     @Test
     fun `rejects duplicate and blank list items`() {
-        writeMinimumManifest()
+        writeMinimumMetadata()
         Files.writeString(
             temporaryDirectory.resolve("vocabulary.csv"),
             "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n" +
@@ -116,7 +116,7 @@ class LessonPackageLoaderTest {
 
     @Test
     fun `rejects malformed uuid enum integer and utf8 input`() {
-        writeMinimumManifest()
+        writeMinimumMetadata()
         fun vocabulary(id: String, part: String = "OTHER", rank: String = "") =
             "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n" +
                 "$id,oo,yes,,$part,,$rank,,\n"
@@ -133,26 +133,26 @@ class LessonPackageLoaderTest {
 
     @Test
     fun `validation reports every kind of header problem before parsing rows`() {
-        writeMinimumManifest()
+        writeMinimumMetadata()
         Files.writeString(
             temporaryDirectory.resolve("grammar.csv"),
             "id,Name,description,source_id,source_id,unexpected\n" +
                 "bad-id,,,,,\n",
         )
 
-        val result = loader.loadForValidation(temporaryDirectory)
+        val result = loader.read(temporaryDirectory)
 
-        assertTrue(result.errors.any { it.message.contains("incorrect case") && it.guidance.contains("name") })
-        assertTrue(result.errors.any { it.message.contains("Missing column 'formula'") })
-        assertTrue(result.errors.any { it.message.contains("Duplicate column 'source_id'") })
-        assertTrue(result.errors.any { it.message.contains("Unexpected column 'unexpected'") })
-        assertTrue(result.errors.all { it.row == 0L })
-        assertTrue(result.errors.none { it.message.contains("UUID") }, "Rows must not be parsed after an invalid header")
+        assertTrue(result.diagnostics.any { it.message.contains("incorrect case") && it.guidance.contains("name") })
+        assertTrue(result.diagnostics.any { it.message.contains("Missing column 'formula'") })
+        assertTrue(result.diagnostics.any { it.message.contains("Duplicate column 'source_id'") })
+        assertTrue(result.diagnostics.any { it.message.contains("Unexpected column 'unexpected'") })
+        assertTrue(result.diagnostics.all { it.row == 0L })
+        assertTrue(result.diagnostics.none { it.message.contains("UUID") }, "Rows must not be parsed after an invalid header")
     }
 
     @Test
     fun `validation collects independent malformed rows`() {
-        writeMinimumManifest()
+        writeMinimumMetadata()
         Files.writeString(
             temporaryDirectory.resolve("vocabulary.csv"),
             "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n" +
@@ -160,13 +160,13 @@ class LessonPackageLoaderTest {
                 "30000000-0000-4000-8000-000000000001,hindi,no,,wrong-enum,,,,\n",
         )
 
-        val result = loader.loadForValidation(temporaryDirectory)
+        val result = loader.read(temporaryDirectory)
 
-        assertEquals(listOf(1L, 2L), result.errors.map { it.row })
-        assertTrue(result.errors.all { it.filename == "vocabulary.csv" })
+        assertEquals(listOf(1L, 2L), result.diagnostics.map { it.row })
+        assertTrue(result.diagnostics.all { it.filename == "vocabulary.csv" })
     }
 
-    private fun writeMinimumManifest(name: String = "Lesson") {
+    private fun writeMinimumMetadata(name: String = "Lesson") {
         Files.writeString(
             temporaryDirectory.resolve("lesson.json"),
             """{"schema_version":1,"lesson":{"id":"10000000-0000-4000-8000-000000000001","name":"$name"},"sources":[]}""",

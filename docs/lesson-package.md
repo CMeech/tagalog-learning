@@ -12,7 +12,7 @@ directory containing `lesson.json` and at least one of `vocabulary.csv`, `senten
   property names are exact and case-sensitive; unspecified properties are invalid.
 - Each contract file may be at most 10 MiB (10,485,760 bytes), and the four contract files together
   may be at most 25 MiB (26,214,400 bytes). Ignored files do not count toward this limit.
-- Each CSV file may contain at most 100,000 data rows. A decoded manifest string or CSV field may
+- Each CSV file may contain at most 100,000 data rows. A decoded metadata string or CSV field may
   contain at most 1,048,576 Unicode characters. These limits are checked in addition to the byte
   limits so malformed input cannot cause unbounded parser allocations or collections.
 - A package contains one lesson only. There is no ordering dependency among its rows.
@@ -46,7 +46,7 @@ must be quoted. Embedded newlines are preserved. Headers must exactly match the 
 [`examples/import`](../examples/import), including order and case; no extra or missing columns are
 allowed.
 
-All manifest and CSV string scalars are NFC-normalized and trimmed at their outer edges after
+All metadata and CSV string scalars are NFC-normalized and trimmed at their outer edges after
 parsing. Internal spaces and quoted newlines are preserved. A blank optional field means absent. A
 blank required field is invalid. Whitespace-only values are blank. There is no syntax for an
 explicit empty string. Enum values and UUIDs must already have their required case and spelling after
@@ -72,8 +72,8 @@ Header: `id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,s
 - Blank `difficulty` defaults to `BEGINNER`; otherwise it is `BEGINNER`, `INTERMEDIATE`, or
   `ADVANCED`.
 - `frequency_rank`, when present, is a positive base-10 integer with no sign.
-- `root_word`, `source_id`, and `tags` are optional. A blank `source_id` uses the manifest default;
-  it remains absent if the manifest has no default.
+- `root_word`, `source_id`, and `tags` are optional. A blank `source_id` uses the metadata default;
+  it remains absent if the metadata has no default.
 
 ### `sentences.csv`
 
@@ -91,12 +91,12 @@ Header: `id,name,description,formula,source_id`
 - `source_id` is optional and uses the same defaulting rule.
 - Examples are represented only by sentence `grammar_ids` relationships.
 
-Every imported vocabulary, sentence, and grammar row gains an association with the manifest lesson.
+Every imported vocabulary, sentence, and grammar row gains an association with the metadata lesson.
 The knowledge record itself remains global and may be associated with many lessons. A row's resolved
 `source_id` is provenance for that entity's occurrence in this lesson rather than exclusive ownership
-of the entity. A non-blank `source_id` must resolve to a source in this manifest or one already stored
-in SQLite. Sources listed in the manifest are global records subject to the same
-new/unchanged/conflict/update rules as other global records; the manifest also associates them with
+of the entity. A non-blank `source_id` must resolve to a source in this metadata or one already stored
+in SQLite. Sources listed in the metadata are global records subject to the same
+new/unchanged/conflict/update rules as other global records; the metadata also associates them with
 the lesson.
 
 ## Normalized content and duplicate comparison
@@ -152,7 +152,7 @@ docs/lesson-package.md and validate lesson.json against docs/lesson-package.sche
 headers exactly from examples/import/*.csv. Use UTF-8, Unicode NFC, lowercase canonical UUIDs, and
 schema_version 1. Preserve any UUIDs supplied with the source or prior package; generate UUIDv4 only
 for genuinely new records. Do not change IDs while correcting content. Include source provenance,
-use the manifest default source where appropriate, quote CSV fields correctly, and use pipe-separated
+use the metadata default source where appropriate, quote CSV fields correctly, and use pipe-separated
 unique values only for tags and relationship IDs. Do not invent extra properties, columns, files, or
 editorial workflow state. Tag names must be lowercase NFC tokens without whitespace or pipes. Return
 the files plus a short validation summary listing counts and every cross-package relationship.

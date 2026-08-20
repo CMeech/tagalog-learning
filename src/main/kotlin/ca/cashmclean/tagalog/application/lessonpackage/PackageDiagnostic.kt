@@ -15,8 +15,3 @@ data class PackageDiagnostic(
         }
     }
 }
-
-data class LessonPackageLoadResult(
-    val candidate: LessonPackageCandidate?,
-    val errors: List<PackageDiagnostic>,
-)
