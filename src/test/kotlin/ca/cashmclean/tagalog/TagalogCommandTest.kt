@@ -129,6 +129,25 @@ class TagalogCommandTest {
         }
     }
 
+    @Test
+    fun `lesson import reports counts and exact rerun in text and json`() {
+        withTemporaryDatabase {
+            assertEquals(0, execute("init").exitCode)
+            val packagePath = Path.of("examples/lesson-package").toAbsolutePath().toString()
+
+            val imported = execute("lesson", "import", packagePath)
+            val rerun = execute("lesson", "import", packagePath, "--format", "json")
+
+            assertEquals(0, imported.exitCode)
+            assertTrue(imported.text.contains("11 inserted"))
+            assertTrue(imported.text.contains("10 newly related"))
+            assertEquals(0, rerun.exitCode)
+            assertTrue(rerun.text.contains("\"success\":true"))
+            assertTrue(rerun.text.contains("\"exact_rerun\":true"))
+            assertEquals(1, rowCount("import_run"))
+        }
+    }
+
     private fun withTemporaryDatabase(action: () -> Unit) {
         val property = "tagalog.db.path"
         val previous = System.getProperty(property)

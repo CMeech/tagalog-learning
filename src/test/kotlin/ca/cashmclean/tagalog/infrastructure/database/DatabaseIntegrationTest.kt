@@ -25,13 +25,18 @@ class DatabaseIntegrationTest {
         "vocabulary_tag",
         "sentence_vocabulary",
         "sentence_grammar",
+        "lesson_source",
+        "lesson_vocabulary",
+        "lesson_sentence",
+        "lesson_grammar",
+        "import_run",
     )
 
     @Test
     fun `migration creates every required table and is idempotent`() {
         val manager = manager()
 
-        assertEquals(1, manager.migrate())
+        assertEquals(2, manager.migrate())
         assertEquals(0, manager.migrate())
         manager.validate()
 
@@ -115,6 +120,54 @@ class DatabaseIntegrationTest {
     }
 
     @Test
+    fun `V2 backfills legacy lesson membership and source provenance`() {
+        val lessonId = UUID.randomUUID().toString()
+        val sourceId = UUID.randomUUID().toString()
+        val vocabularyId = UUID.randomUUID().toString()
+
+        // Recreate a V1 database explicitly, then apply V2 to exercise its backfill statements.
+        val legacyConfig = DatabaseConfig(temporaryDirectory.resolve("legacy.db"))
+        val v1Sql = requireNotNull(javaClass.getResourceAsStream("/db/migration/V1__create_learning_schema.sql"))
+            .bufferedReader().use { it.readText() }
+        DriverManager.getConnection(legacyConfig.jdbcUrl).use { connection ->
+            connection.createStatement().use { statement ->
+                v1Sql.split(';').map(String::trim).filter(String::isNotEmpty).forEach(statement::execute)
+            }
+            connection.prepareStatement("INSERT INTO lesson (id, name) VALUES (?, 'Legacy lesson')").use {
+                it.setString(1, lessonId); it.executeUpdate()
+            }
+            connection.prepareStatement("INSERT INTO source (id, name, type) VALUES (?, 'Legacy source', 'BOOK')").use {
+                it.setString(1, sourceId); it.executeUpdate()
+            }
+            connection.prepareStatement(
+                """INSERT INTO vocabulary
+                   (id, tagalog, english_meaning, part_of_speech, difficulty, lesson_id, source_id)
+                   VALUES (?, 'ako', 'I', 'PRONOUN', 'BEGINNER', ?, ?)""".trimIndent(),
+            ).use {
+                it.setString(1, vocabularyId); it.setString(2, lessonId); it.setString(3, sourceId); it.executeUpdate()
+            }
+        }
+        // Flyway cannot adopt an unversioned non-empty schema without a baseline, so run V2 directly.
+        val v2Sql = requireNotNull(javaClass.getResourceAsStream("/db/migration/V2__add_lesson_associations_and_import_history.sql"))
+            .bufferedReader().use { it.readText() }
+        DriverManager.getConnection(legacyConfig.jdbcUrl).use { connection ->
+            connection.createStatement().use { statement ->
+                v2Sql.split(';').map(String::trim).filter(String::isNotEmpty).forEach(statement::execute)
+            }
+            connection.prepareStatement(
+                "SELECT source_id FROM lesson_vocabulary WHERE lesson_id = ? AND vocabulary_id = ?",
+            ).use { statement ->
+                statement.setString(1, lessonId)
+                statement.setString(2, vocabularyId)
+                statement.executeQuery().use { result ->
+                    assertEquals(true, result.next())
+                    assertEquals(sourceId, result.getString(1))
+                }
+            }
+        }
+    }
+
+    @Test
     fun `Exposed mappings cover every required table`() {
         val mappedTables = setOf(
             VocabularyTable,
@@ -126,6 +179,11 @@ class DatabaseIntegrationTest {
             VocabularyTags,
             SentenceVocabulary,
             SentenceGrammar,
+            LessonSources,
+            LessonVocabulary,
+            LessonSentences,
+            LessonGrammar,
+            ImportRuns,
         ).mapTo(mutableSetOf()) { it.tableName }
 
         assertEquals(requiredTables, mappedTables)

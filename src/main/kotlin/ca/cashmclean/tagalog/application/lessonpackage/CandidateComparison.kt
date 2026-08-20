@@ -29,6 +29,7 @@ internal class TypedCandidateComparison<C, S>(
     private val policy: CandidateComparisonPolicy<C, S>,
     private val candidates: List<C>,
     private val stored: List<S>,
+    private val allowUpdates: Boolean = false,
 ) : CandidateComparison {
     override fun validate(errors: MutableList<PackageDiagnostic>, assessments: MutableList<CandidateAssessment>) {
         candidates.forEachIndexed { index, candidate -> errors += policy.diagnostics(candidate, policy.row(index)) }
@@ -47,6 +48,7 @@ internal class TypedCandidateComparison<C, S>(
             val disposition = when {
                 existing == null -> CandidateDisposition.INSERT
                 policy.storedContent(existing) == content -> CandidateDisposition.UNCHANGED
+                allowUpdates -> CandidateDisposition.UPDATE
                 else -> CandidateDisposition.CONFLICT
             }
             assessments += CandidateAssessment(policy.type, id, disposition)

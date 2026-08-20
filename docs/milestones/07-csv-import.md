@@ -70,43 +70,43 @@ where knowledge was encountered; they do not own or duplicate that knowledge. Se
 and sentence-to-grammar links remain durable semantic relationships that can be queried independently
 of any export format.
 
-- [ ] Add a Flyway migration for `lesson_vocabulary`, `lesson_sentence`, `lesson_grammar`, and
+- [x] Add a Flyway migration for `lesson_vocabulary`, `lesson_sentence`, `lesson_grammar`, and
       `lesson_source` associations; never alter V1. Backfill associations from V1 `lesson_id` and
       `source_id` values so existing collections retain lesson membership and provenance.
-- [ ] Store source provenance on each lesson/entity association where applicable. Reusing the same
+- [x] Store source provenance on each lesson/entity association where applicable. Reusing the same
       entity in a later lesson adds an association instead of changing the entity or causing a
       content conflict.
-- [ ] Treat V1 entity `lesson_id` and `source_id` columns as legacy compatibility data after backfill;
+- [x] Treat V1 entity `lesson_id` and `source_id` columns as legacy compatibility data after backfill;
       new import and query code must use the association tables rather than assigning single owners.
-- [ ] Add read/query repository boundaries for lessons, vocabulary, sentences, grammar, and their
+- [x] Add read/query repository boundaries for lessons, vocabulary, sentences, grammar, and their
       associations so later inspection, export, and generation workflows do not depend on import
       internals or Anki concepts.
-- [ ] Add a Flyway migration for successful import-run metadata and constraints required by the
+- [x] Add a Flyway migration for successful import-run metadata and constraints required by the
       package contract.
-- [ ] Store import-run UUID, lesson UUID, package checksum, schema version, timestamp, and separate
+- [x] Store import-run UUID, lesson UUID, package checksum, schema version, timestamp, and separate
       counts for inserted, updated, unchanged, and newly related records.
-- [ ] Add `tagalog lesson import <package>`.
-- [ ] Treat an exact previously successful package checksum as an idempotent no-op that reports the
+- [x] Add `tagalog lesson import <package>`.
+- [x] Treat an exact previously successful package checksum as an idempotent no-op that reports the
       original import run.
-- [ ] Insert new lesson, source, vocabulary, sentence, grammar, tag, semantic relationships, lesson
+- [x] Insert new lesson, source, vocabulary, sentence, grammar, tag, semantic relationships, lesson
       associations, provenance, and import history in one transaction.
-- [ ] Compare existing UUIDs using global entity content only. Lesson membership and per-lesson source
+- [x] Compare existing UUIDs using global entity content only. Lesson membership and per-lesson source
       provenance are associations and never make otherwise identical entity content conflict.
-- [ ] Reject differing global content for an existing UUID unless `--update-existing` is present.
-- [ ] With `--update-existing`, replace complete package-owned global fields, tags, and sentence
+- [x] Reject differing global content for an existing UUID unless `--update-existing` is present.
+- [x] With `--update-existing`, replace complete package-owned global fields, tags, and sentence
       relationships atomically after all candidates validate. Replace the included entity's
       association metadata for this lesson without deleting associations from other lessons.
-- [ ] Treat packages as incremental: records and associations omitted from a later package remain
+- [x] Treat packages as incremental: records and associations omitted from a later package remain
       unchanged. Package omission never means deletion or detachment.
-- [ ] Preserve existing records referenced by the package but not defined by it, while resolving the
+- [x] Preserve existing records referenced by the package but not defined by it, while resolving the
       new semantic relationships to those records.
-- [ ] Persist successful import history in the same transaction as content and relationship changes.
-- [ ] Add integration tests for insert, exact rerun, conflict, explicit update, rollback, source
+- [x] Persist successful import history in the same transaction as content and relationship changes.
+- [x] Add integration tests for insert, exact rerun, conflict, explicit update, rollback, source
       defaults, tags, relationship replacement, and import history.
-- [ ] Add integration tests proving the same vocabulary, sentence, and grammar UUID can participate in
+- [x] Add integration tests proving the same vocabulary, sentence, and grammar UUID can participate in
       multiple lessons without duplication or conflict, and that cross-package sentence relationships
       resolve to previously stored knowledge.
-- [ ] Add query tests proving the stored graph can answer both directions of core questions: sentences
+- [x] Add query tests proving the stored graph can answer both directions of core questions: sentences
       using a vocabulary item or grammar concept, concepts and vocabulary used by a sentence, and all
       lessons in which an entity occurs.
 

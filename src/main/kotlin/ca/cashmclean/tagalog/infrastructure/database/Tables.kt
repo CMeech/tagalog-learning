@@ -74,3 +74,43 @@ object SentenceGrammar : Table("sentence_grammar") {
     val grammarConceptId = reference("grammar_concept_id", GrammarConcepts.id, onDelete = ReferenceOption.CASCADE)
     override val primaryKey = PrimaryKey(sentenceId, grammarConceptId)
 }
+
+object LessonSources : Table("lesson_source") {
+    val lessonId = reference("lesson_id", Lessons.id, onDelete = ReferenceOption.CASCADE)
+    val sourceId = reference("source_id", Sources.id, onDelete = ReferenceOption.RESTRICT)
+    override val primaryKey = PrimaryKey(lessonId, sourceId)
+}
+
+object LessonVocabulary : Table("lesson_vocabulary") {
+    val lessonId = reference("lesson_id", Lessons.id, onDelete = ReferenceOption.CASCADE)
+    val vocabularyId = reference("vocabulary_id", VocabularyTable.id, onDelete = ReferenceOption.CASCADE)
+    val sourceId = optReference("source_id", Sources.id, onDelete = ReferenceOption.RESTRICT)
+    override val primaryKey = PrimaryKey(lessonId, vocabularyId)
+}
+
+object LessonSentences : Table("lesson_sentence") {
+    val lessonId = reference("lesson_id", Lessons.id, onDelete = ReferenceOption.CASCADE)
+    val sentenceId = reference("sentence_id", Sentences.id, onDelete = ReferenceOption.CASCADE)
+    val sourceId = optReference("source_id", Sources.id, onDelete = ReferenceOption.RESTRICT)
+    override val primaryKey = PrimaryKey(lessonId, sentenceId)
+}
+
+object LessonGrammar : Table("lesson_grammar") {
+    val lessonId = reference("lesson_id", Lessons.id, onDelete = ReferenceOption.CASCADE)
+    val grammarConceptId = reference("grammar_concept_id", GrammarConcepts.id, onDelete = ReferenceOption.CASCADE)
+    val sourceId = optReference("source_id", Sources.id, onDelete = ReferenceOption.RESTRICT)
+    override val primaryKey = PrimaryKey(lessonId, grammarConceptId)
+}
+
+object ImportRuns : Table("import_run") {
+    val id = varchar("id", 36)
+    val lessonId = reference("lesson_id", Lessons.id, onDelete = ReferenceOption.RESTRICT)
+    val packageChecksum = varchar("package_checksum", 64).uniqueIndex()
+    val schemaVersion = integer("schema_version")
+    val importedAt = text("imported_at")
+    val insertedCount = integer("inserted_count")
+    val updatedCount = integer("updated_count")
+    val unchangedCount = integer("unchanged_count")
+    val newlyRelatedCount = integer("newly_related_count")
+    override val primaryKey = PrimaryKey(id)
+}
