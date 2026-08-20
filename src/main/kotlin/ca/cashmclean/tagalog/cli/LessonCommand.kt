@@ -8,20 +8,117 @@ import ca.cashmclean.tagalog.application.lessonpackage.LessonPackageValidator
 import ca.cashmclean.tagalog.application.lessonpackage.PackageDiagnostic
 import ca.cashmclean.tagalog.infrastructure.database.DatabaseConfig
 import ca.cashmclean.tagalog.infrastructure.database.LessonPackageSnapshotReader
+import ca.cashmclean.tagalog.infrastructure.database.JdbcKnowledgeGraphQueries
+import ca.cashmclean.tagalog.application.LessonDetail
+import ca.cashmclean.tagalog.application.LessonEntityView
 import com.fasterxml.jackson.databind.ObjectMapper
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
 import picocli.CommandLine.Parameters
 import java.nio.file.Path
+import java.util.UUID
 
 @Command(
     name = "lesson",
     description = ["Manage lesson packages."],
-    subcommands = [ValidateLessonCommand::class, ImportLessonCommand::class],
+    subcommands = [ValidateLessonCommand::class, ImportLessonCommand::class, ListLessonsCommand::class, ShowLessonCommand::class],
 )
 class LessonCommand
 
 enum class OutputFormat { text, json }
+
+@Command(name = "list", description = ["List lessons in the collection."])
+class ListLessonsCommand : java.util.concurrent.Callable<Int> {
+    @Option(names = ["--format"], defaultValue = "text")
+    lateinit var format: OutputFormat
+
+    override fun call(): Int {
+        val lessons = JdbcKnowledgeGraphQueries(DatabaseConfig.fromEnvironment()).lessons()
+        when (format) {
+            OutputFormat.text -> if (lessons.isEmpty()) {
+                println("No lessons found.")
+            } else lessons.forEach {
+                println("${it.lesson.id}  ${it.lesson.name}  (${it.vocabularyCount} vocabulary, ${it.sentenceCount} sentences, ${it.grammarCount} grammar, ${it.sourceCount} sources, ${it.importRunCount} imports)")
+            }
+            OutputFormat.json -> println(ObjectMapper().writeValueAsString(linkedMapOf(
+                "lessons" to lessons.map { summary -> linkedMapOf(
+                    "id" to summary.lesson.id.toString(), "name" to summary.lesson.name,
+                    "description" to summary.lesson.description,
+                    "counts" to linkedMapOf("sources" to summary.sourceCount, "vocabulary" to summary.vocabularyCount,
+                        "sentences" to summary.sentenceCount, "grammar" to summary.grammarCount, "import_runs" to summary.importRunCount),
+                ) },
+            )))
+        }
+        return 0
+    }
+}
+
+@Command(name = "show", description = ["Show a lesson and its stored knowledge."])
+class ShowLessonCommand : java.util.concurrent.Callable<Int> {
+    @Parameters(index = "0", paramLabel = "<lesson-id>")
+    lateinit var lessonId: UUID
+
+    @Option(names = ["--format"], defaultValue = "text")
+    lateinit var format: OutputFormat
+
+    override fun call(): Int {
+        val detail = JdbcKnowledgeGraphQueries(DatabaseConfig.fromEnvironment()).lessonDetail(lessonId)
+        if (detail == null) {
+            val message = "Lesson not found: $lessonId"
+            if (format == OutputFormat.json) System.err.println(ObjectMapper().writeValueAsString(linkedMapOf("found" to false, "lesson_id" to lessonId.toString(), "message" to message)))
+            else System.err.println(message)
+            return 2
+        }
+        when (format) {
+            OutputFormat.text -> printLesson(detail)
+            OutputFormat.json -> println(ObjectMapper().writeValueAsString(detail.toJson()))
+        }
+        return 0
+    }
+
+    private fun printLesson(detail: LessonDetail) {
+        println("Lesson: ${detail.lesson.name} (${detail.lesson.id})")
+        detail.lesson.description?.let { println("Description: $it") }
+        println("Counts: ${detail.sources.size} sources, ${detail.vocabulary.size} vocabulary, ${detail.sentences.size} sentences, ${detail.grammar.size} grammar, ${detail.importRuns.size} imports")
+        printEntities("Sources", detail.sources.map { "${it.id}  ${it.name} [${it.type}]${it.reference?.let { reference -> " — $reference" } ?: ""}" })
+        printEntities("Vocabulary", detail.vocabulary.map(::entityText))
+        printEntities("Sentences", detail.sentences.map { entity ->
+            val vocabulary = detail.sentenceVocabulary.getValue(entity.id).joinToString { "${it.displayText} (${it.id})" }
+            val grammar = detail.sentenceGrammar.getValue(entity.id).joinToString { "${it.displayText} (${it.id})" }
+            "${entityText(entity)}${if (vocabulary.isNotEmpty()) "\n    Vocabulary: $vocabulary" else ""}${if (grammar.isNotEmpty()) "\n    Grammar: $grammar" else ""}"
+        })
+        printEntities("Grammar", detail.grammar.map(::entityText))
+        printEntities("Import history", detail.importRuns.map { "${it.id}  ${it.importedAt}  checksum=${it.packageChecksum}  schema=${it.schemaVersion}  inserted=${it.inserted}, updated=${it.updated}, unchanged=${it.unchanged}, newly-related=${it.newlyRelated}" })
+    }
+
+    private fun printEntities(label: String, values: List<String>) {
+        println("$label:")
+        if (values.isEmpty()) println("  (none)") else values.forEach { println("  $it") }
+    }
+
+    private fun entityText(entity: LessonEntityView) = "${entity.id}  ${entity.displayText}  [source: ${entity.sourceName ?: "none"}${entity.sourceId?.let { " ($it)" } ?: ""}]"
+
+    private fun LessonDetail.toJson(): Map<String, Any?> = linkedMapOf(
+        "found" to true,
+        "lesson" to linkedMapOf("id" to lesson.id.toString(), "name" to lesson.name, "description" to lesson.description),
+        "counts" to linkedMapOf("sources" to sources.size, "vocabulary" to vocabulary.size, "sentences" to sentences.size, "grammar" to grammar.size, "import_runs" to importRuns.size),
+        "sources" to sources.map { linkedMapOf("id" to it.id.toString(), "name" to it.name, "type" to it.type.name, "reference" to it.reference) },
+        "vocabulary" to vocabulary.map { it.toJson() },
+        "sentences" to sentences.map { entity -> entity.toJson() + linkedMapOf(
+            "vocabulary" to sentenceVocabulary.getValue(entity.id).map { linkedMapOf("id" to it.id.toString(), "text" to it.displayText) },
+            "grammar" to sentenceGrammar.getValue(entity.id).map { linkedMapOf("id" to it.id.toString(), "text" to it.displayText) },
+        ) },
+        "grammar" to grammar.map { it.toJson() },
+        "import_history" to importRuns.map { linkedMapOf("id" to it.id.toString(), "package_checksum" to it.packageChecksum,
+            "schema_version" to it.schemaVersion, "imported_at" to it.importedAt.toString(),
+            "inserted" to it.inserted, "updated" to it.updated, "unchanged" to it.unchanged, "newly_related" to it.newlyRelated) },
+    )
+
+    private fun LessonEntityView.toJson() = linkedMapOf(
+        "id" to id.toString(), "text" to displayText,
+        "source" to sourceId?.let { linkedMapOf("id" to it.toString(), "name" to sourceName) },
+    )
+}
 
 @Command(name = "validate", description = ["Validate a lesson package without modifying SQLite."])
 class ValidateLessonCommand : java.util.concurrent.Callable<Int> {

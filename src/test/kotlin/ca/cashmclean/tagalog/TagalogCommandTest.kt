@@ -148,6 +148,68 @@ class TagalogCommandTest {
         }
     }
 
+    @Test
+    fun `lesson list is deterministic and supports empty text and stable json`() {
+        withTemporaryDatabase {
+            execute("init")
+            assertEquals("No lessons found.", execute("lesson", "list").text.trim())
+            assertEquals("{\"lessons\":[]}", execute("lesson", "list", "--format", "json").text.trim())
+
+            DriverManager.getConnection(databaseUrl()).use { connection ->
+                connection.prepareStatement("INSERT INTO lesson (id, name) VALUES (?, ?)").use { statement ->
+                    listOf("b0000000-0000-4000-8000-000000000000" to "Second", "a0000000-0000-4000-8000-000000000000" to "First").forEach {
+                        statement.setString(1, it.first)
+                        statement.setString(2, it.second)
+                        statement.executeUpdate()
+                    }
+                }
+            }
+            val listed = execute("lesson", "list")
+            assertTrue(listed.text.indexOf("First") < listed.text.indexOf("Second"))
+        }
+    }
+
+    @Test
+    fun `lesson show includes provenance relationships counts and import history`() {
+        withTemporaryDatabase {
+            execute("init")
+            val packagePath = Path.of("examples/lesson-package").toAbsolutePath().toString()
+            execute("lesson", "import", packagePath)
+            val lessonId = "10000000-0000-4000-8000-000000000001"
+
+            val text = execute("lesson", "show", lessonId)
+            val json = execute("lesson", "show", lessonId, "--format", "json")
+
+            assertEquals(0, text.exitCode)
+            assertTrue(text.text.contains("Counts: 1 sources, 4 vocabulary, 3 sentences, 2 grammar, 1 imports"))
+            assertTrue(text.text.contains("Vocabulary:"))
+            assertTrue(text.text.contains("source: Usapang Tagalog, Aralin 1"))
+            assertTrue(text.text.contains("Grammar:"))
+            assertTrue(text.text.contains("Import history:"))
+            assertEquals(0, json.exitCode)
+            assertTrue(json.text.contains("\"found\":true"))
+            assertTrue(json.text.contains("\"import_history\":[{"))
+            assertTrue(json.text.contains("\"vocabulary\":[{"))
+            assertTrue(json.text.contains("\"source\":{\"id\":"))
+        }
+    }
+
+    @Test
+    fun `lesson show reports an unknown id in text and stable json`() {
+        withTemporaryDatabase {
+            execute("init")
+            val id = "00000000-0000-4000-8000-000000000000"
+
+            val text = execute("lesson", "show", id)
+            val json = execute("lesson", "show", id, "--format", "json")
+
+            assertEquals(2, text.exitCode)
+            assertEquals("Lesson not found: $id", text.error.trim())
+            assertEquals(2, json.exitCode)
+            assertEquals("{\"found\":false,\"lesson_id\":\"$id\",\"message\":\"Lesson not found: $id\"}", json.error.trim())
+        }
+    }
+
     private fun withTemporaryDatabase(action: () -> Unit) {
         val property = "tagalog.db.path"
         val previous = System.getProperty(property)

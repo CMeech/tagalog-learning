@@ -112,10 +112,10 @@ of any export format.
 
 ### M7.4 — Add collection inspection
 
-- [ ] Add `tagalog lesson list` with deterministic ordering and text/JSON output.
-- [ ] Add `tagalog lesson show <lesson-id>` with manifest metadata, sources, entity counts, and import
+- [x] Add `tagalog lesson list` with deterministic ordering and text/JSON output.
+- [x] Add `tagalog lesson show <lesson-id>` with manifest metadata, sources, entity counts, and import
       history.
-- [ ] Include record UUIDs, lesson-scoped source provenance, and readable semantic relationship
+- [x] Include record UUIDs, lesson-scoped source provenance, and readable semantic relationship
       summaries so imported data can be diagnosed.
 - [ ] Add entity-level `show <id>` commands where necessary to inspect complete stored content,
       including every lesson association and that association's source provenance.
