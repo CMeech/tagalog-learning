@@ -136,9 +136,9 @@ of any export format.
 
 ### M7.5 — Implement repeatable Anki export
 
-- [ ] Add application export projections for vocabulary, sentences, and grammar without placing Anki
+- [x] Add application export projections for vocabulary, sentences, and grammar without placing Anki
       concepts in domain entities.
-- [ ] Implement the three Milestone 6 TSV renderers and verify them against expected fixtures.
+- [x] Implement the three Milestone 6 TSV renderers and verify them against expected fixtures.
 - [ ] Add `tagalog anki export --lesson <lesson-id> --output <new-directory>`.
 - [ ] Keep delivery file-based: do not add AnkiConnect, require Anki to be running, or modify an Anki
       collection directly.

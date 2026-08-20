@@ -3,44 +3,29 @@ package ca.cashmclean.tagalog.infrastructure.export.anki
 import ca.cashmclean.tagalog.application.export.ExportDocument
 import ca.cashmclean.tagalog.application.export.Exporter
 import ca.cashmclean.tagalog.application.export.ExportRow
-import ca.cashmclean.tagalog.domain.Vocabulary
+import ca.cashmclean.tagalog.application.export.VocabularyExportProjection
 
-/**
- * A text-file export foundation for Anki. File writing and note-type creation are
- * intentionally left to a later milestone.
- */
-class AnkiVocabularyExporter : Exporter<Vocabulary> {
-    override fun export(items: Iterable<Vocabulary>) = ExportDocument(
+class AnkiVocabularyExporter : Exporter<VocabularyExportProjection> {
+    override fun export(items: Iterable<VocabularyExportProjection>) = ExportDocument(
         columns = COLUMNS,
-        rows = items.map { vocabulary ->
+        rows = items.sortedBy { it.id }.map { vocabulary ->
             ExportRow(
                 listOf(
                     vocabulary.id.toString(),
                     vocabulary.tagalog,
-                    vocabulary.englishMeaning,
+                    vocabulary.english,
                     vocabulary.rootWord.orEmpty(),
                     vocabulary.partOfSpeech.name,
                     vocabulary.difficulty.name,
-                    vocabulary.frequencyRank?.toString().orEmpty(),
+                    vocabulary.tags.distinct().sortedWith(UNICODE_COMPARATOR).joinToString(" "),
+                    vocabulary.association.lessonName,
+                    vocabulary.association.sourceDisplay,
                 ),
             )
         },
     )
 
-    fun render(document: ExportDocument): String = buildString {
-        appendLine("#separator:Tab")
-        appendLine("#html:false")
-        append("#columns:")
-        appendLine(document.columns.joinToString("\t", transform = ::escape))
-        document.rows.forEach { row ->
-            appendLine(row.values.joinToString("\t", transform = ::escape))
-        }
-    }
-
-    private fun escape(value: String): String {
-        if (value.none { it == '\t' || it == '\r' || it == '\n' || it == '"' }) return value
-        return "\"${value.replace("\"", "\"\"")}\""
-    }
+    fun render(document: ExportDocument): String = AnkiTsvRenderer("Tagalog Vocabulary", tagsColumn = 7).render(document)
 
     private companion object {
         val COLUMNS = listOf(
@@ -50,7 +35,18 @@ class AnkiVocabularyExporter : Exporter<Vocabulary> {
             "Root Word",
             "Part of Speech",
             "Difficulty",
-            "Frequency Rank",
+            "Tags",
+            "Lesson",
+            "Source",
         )
+
+        val UNICODE_COMPARATOR = Comparator<String> { left, right ->
+            val leftPoints = left.codePoints().toArray()
+            val rightPoints = right.codePoints().toArray()
+            for (index in 0 until minOf(leftPoints.size, rightPoints.size)) {
+                if (leftPoints[index] != rightPoints[index]) return@Comparator leftPoints[index].compareTo(rightPoints[index])
+            }
+            leftPoints.size.compareTo(rightPoints.size)
+        }
     }
 }
