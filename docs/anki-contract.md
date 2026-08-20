@@ -37,7 +37,7 @@ create an invalid field named `Tags`.
 | sentences | `Vocabulary` | Related Tagalog vocabulary forms, relationship-UUID ordered and joined with `; `. |
 | sentences | `Grammar` | Related grammar names, relationship-UUID ordered and joined with `; `. |
 | grammar | `Name`, `Description`, `Formula` | Corresponding grammar values. |
-| grammar | `Examples` | Related sentence Tagalog text, sentence-UUID ordered and joined with `; `. |
+| grammar | `Examples` | Tagalog text from every globally related stored sentence, including sentences from other lessons; sentence-UUID ordered and joined with `; `. |
 | all | `Lesson` | Lesson name. |
 | all | `Source` | Source name followed by ` — ` and its reference when present; just the name otherwise; blank when absent. |
 

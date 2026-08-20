@@ -46,7 +46,8 @@ when its entity type is wrong.
 - Sentence cards obtain their ID, two faces, and difficulty from `sentences.csv`; readable vocabulary
   and grammar are resolved through its UUID lists; lesson and source come from the manifest.
 - Grammar cards obtain ID, name, description, and formula from `grammar.csv`; examples are the
-  Tagalog text of sentences that refer to each grammar ID; lesson and source come from the manifest.
+  Tagalog text of every globally stored sentence that refers to each grammar ID, including sentences
+  associated with other lessons. Lesson and source come from the exported lesson association.
 - Optional and empty relationship rendering is specified in the Anki contract. No desired card field
   requires application code knowledge or data outside the four package files (except an explicitly
   allowed relationship to a previously imported SQLite record).

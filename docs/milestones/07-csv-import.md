@@ -115,12 +115,19 @@ of any export format.
 - [ ] Add `tagalog lesson list` with deterministic ordering and text/JSON output.
 - [ ] Add `tagalog lesson show <lesson-id>` with manifest metadata, sources, entity counts, and import
       history.
-- [ ] Include record UUIDs and readable relationship summaries so imported data can be diagnosed.
-- [ ] Add entity-level `show <id>` commands where necessary to inspect complete stored content.
+- [ ] Include record UUIDs, lesson-scoped source provenance, and readable semantic relationship
+      summaries so imported data can be diagnosed.
+- [ ] Add entity-level `show <id>` commands where necessary to inspect complete stored content,
+      including every lesson association and that association's source provenance.
 - [ ] Add explicit `vocabulary delete <id>`, `sentence delete <id>`, and `grammar delete <id>` commands;
       never infer deletion from package omission.
-- [ ] Refuse deletion when another stored record references the target and report those references so
-      they can be corrected first.
+- [ ] Treat lesson membership and its source provenance as dependent association metadata: deleting
+      an entity removes those associations in the same transaction and they do not by themselves
+      prevent explicit deletion.
+- [ ] Refuse deletion when another global knowledge record references the target through a semantic
+      relationship and report those records so they can be corrected first. In particular, refuse to
+      delete vocabulary or grammar referenced by a sentence; deleting a sentence removes its outgoing
+      vocabulary and grammar relationships atomically.
 - [ ] On deletion, print the UUID and remind the user that a matching Anki note must be deleted
       manually because TSV import cannot remove notes.
 - [ ] Add integration tests for unknown IDs, empty collections, ordering, and JSON stability.
@@ -136,6 +143,12 @@ of any export format.
 - [ ] Keep delivery file-based: do not add AnkiConnect, require Anki to be running, or modify an Anki
       collection directly.
 - [ ] Resolve relationships into readable export fields while retaining UUID as the first field.
+- [ ] Select vocabulary, sentence, and grammar rows through their association with the requested
+      lesson. Render each row's `Lesson` and `Source` fields from that same lesson association rather
+      than from legacy entity ownership columns or an association belonging to another lesson.
+- [ ] For an exported grammar concept, derive `Examples` from every globally stored sentence related
+      to that concept, including sentences associated with other lessons. Lesson membership limits
+      which grammar rows are exported, not the global inverse relationship used to render examples.
 - [ ] Render every output into a temporary sibling directory; rename it to the requested destination
       only after every file and manifest succeeds.
 - [ ] Fail without changing the destination when it already exists, the lesson is unknown, or
@@ -164,6 +177,11 @@ of any export format.
       only documented Docker commands.
 - [ ] Add one end-to-end test covering generation fixtures, validation, import, inspection, correction,
       explicit update, cross-week relationship resolution, export, and repeat export.
+- [ ] In the end-to-end workflow, reuse the same vocabulary, sentence, and grammar UUIDs in two
+      lessons with different source provenance. Verify inspection reports both associations and each
+      lesson export selects the correct rows and renders that lesson's `Lesson` and `Source` values;
+      also verify an exported grammar concept includes globally related example sentences from both
+      lessons.
 
 ## Definition of done
 
