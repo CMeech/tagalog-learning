@@ -19,8 +19,8 @@ enum class OutputFormat { text, json }
 
 @Command(name = "validate", description = ["Validate a lesson package without modifying SQLite."])
 class ValidateLessonCommand : java.util.concurrent.Callable<Int> {
-    @Parameters(index = "0", paramLabel = "<package>")
-    lateinit var packageDirectory: Path
+    @Parameters(index = "0", paramLabel = "<lesson.json>")
+    lateinit var lessonFile: Path
 
     @Option(names = ["--format"], defaultValue = "text")
     lateinit var format: OutputFormat
@@ -28,7 +28,7 @@ class ValidateLessonCommand : java.util.concurrent.Callable<Int> {
     override fun call(): Int {
         val config = DatabaseConfig.fromEnvironment()
         val validator = LessonPackageValidator(LessonPackageLoader(), SqliteKnowledgeRepositories(config).create())
-        val result = validator.validate(packageDirectory)
+        val result = validator.validate(lessonFile)
         when (format) {
             OutputFormat.text -> printText(result)
             OutputFormat.json -> println(ObjectMapper().writeValueAsString(result.toJson()))
@@ -50,8 +50,7 @@ class ValidateLessonCommand : java.util.concurrent.Callable<Int> {
 
     private fun PackageDiagnostic.asText(): String = buildString {
         append(filename)
-        row?.let { append(":").append(it) }
-        column?.let { append(" [").append(it).append("]") }
+        path?.let { append(" ").append(it) }
         append(": ").append(message)
         value?.let { append(" Supplied: '").append(it).append("'.") }
         append(" ").append(guidance)
@@ -74,8 +73,7 @@ class ValidateLessonCommand : java.util.concurrent.Callable<Int> {
 
     private fun PackageDiagnostic.toJson(): Map<String, Any?> = linkedMapOf(
         "filename" to filename,
-        "row" to row,
-        "column" to column,
+        "path" to path,
         "value" to value,
         "message" to message,
         "guidance" to guidance,

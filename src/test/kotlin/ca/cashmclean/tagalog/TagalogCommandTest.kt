@@ -9,6 +9,7 @@ import org.junit.jupiter.api.parallel.ResourceLock
 import picocli.CommandLine
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import java.nio.file.Files
 import java.nio.file.Path
 import java.sql.DriverManager
 
@@ -113,7 +114,7 @@ class TagalogCommandTest {
     fun `lesson validate supports text and json without changing SQLite`() {
         withTemporaryDatabase {
             assertEquals(0, execute("init").exitCode)
-            val packagePath = Path.of("examples/lesson-package").toAbsolutePath().toString()
+            val packagePath = Path.of("examples/lesson-package/lesson.json").toAbsolutePath().toString()
             val before = contentRowCount()
 
             val text = execute("lesson", "validate", packagePath)
@@ -126,6 +127,21 @@ class TagalogCommandTest {
             assertTrue(json.text.contains("\"valid\":true"))
             assertTrue(json.text.contains("\"lesson_id\":\"10000000-0000-4000-8000-000000000001\""))
             assertEquals(before, contentRowCount(), "Read-only validation must not add or change content")
+        }
+    }
+
+    @Test
+    fun `lesson validation JSON reports document paths`() {
+        withTemporaryDatabase {
+            assertEquals(0, execute("init").exitCode)
+            val lessonFile = temporaryDirectory.resolve("lesson.json")
+            Files.writeString(lessonFile, """{"schema_version":2,"lesson":{"id":"bad","name":"Lesson"},"sources":[],"vocabulary":[],"sentences":[],"grammar":[]}""")
+
+            val output = execute("lesson", "validate", lessonFile.toString(), "--format", "json")
+
+            assertEquals(2, output.exitCode)
+            assertTrue(output.error.contains("\"path\":") || output.text.contains("\"path\":"))
+            assertTrue(!output.text.contains("\"row\"") && !output.text.contains("\"column\""))
         }
     }
 

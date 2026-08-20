@@ -9,18 +9,15 @@ content review statuses.
 ## Weekly workflow
 
 ```text
-1. Generate or correct a lesson package.
-2. tagalog lesson validate <package> [--format text|json]
-3. tagalog lesson import <package> [--update-existing] [--format text|json]
-4. tagalog lesson show <lesson-id>
-5. tagalog anki export --lesson <lesson-id> --output <new-directory>
-6. Manually import vocabulary.tsv, sentences.tsv, and grammar.tsv into Anki.
+1. Generate or correct `lesson.json`.
+2. `tagalog lesson publish lesson.json`
+3. Manually import vocabulary.tsv, sentences.tsv, and grammar.tsv into Anki.
 ```
 
 After the individual commands are stable, a convenience command may run the same pipeline:
 
 ```text
-tagalog lesson publish <package> --output <new-directory> [--update-existing]
+tagalog lesson publish lesson.json [--output <new-directory>] [--update-existing]
 ```
 
 ## CLI behavior
@@ -35,32 +32,37 @@ tagalog lesson publish <package> --output <new-directory> [--update-existing]
 
 ## Implementation tasks
 
-### M7.1 — Parse packages into typed candidates
+### M7.1 — Parse JSON lessons into typed candidates
 
-- [x] Add and pin one CSV library and one JSON/schema-validation library.
-- [x] Create lesson metadata and CSV candidate models separate from domain and persistence models.
-- [x] Load only the recognized package files and require the Milestone 6 minimum layout.
+- [x] Add and pin a JSON/schema-validation library.
+- [x] Create JSON input candidate models separate from domain and persistence models.
+- [x] Load exactly one regular `lesson.json` file using the version 2 schema.
 - [x] Validate `schema_version` before interpreting the remainder of the package.
 - [x] Normalize strings to NFC and apply the documented trimming/default rules exactly once.
-- [x] Parse UUIDs, enums, integers, quoted fields, embedded newlines, CRLF, BOM input, and
-      pipe-separated lists.
-- [x] Enforce documented file, row, and field size limits before allocating unbounded data.
-- [x] Add parser tests using the canonical fixtures and malformed edge cases.
+- [x] Parse UUIDs, enums, integers, arrays, and embedded newlines while rejecting null and BOM input.
+- [x] Enforce documented file, array, and string limits before allocating unbounded data.
+- [x] Add parser tests using the canonical JSON fixture and malformed edge cases.
 
 ### M7.2 — Implement read-only validation
 
-- [x] Add `tagalog lesson validate <package>`.
-- [x] Validate complete headers before rows and report missing, extra, duplicate, and incorrectly
-      cased columns.
+- [x] Add `tagalog lesson validate <lesson.json>`.
+- [x] Validate required, unknown, duplicate, incorrectly cased, and malformed JSON properties.
 - [x] Convert candidates into domain entities to reuse domain validation.
-- [x] Collect all independent errors rather than stopping at the first bad row.
-- [x] Report filename, one-based data-row number, column, safe supplied value, and correction guidance.
+- [x] Collect all independent semantic errors after structural parsing succeeds.
+- [x] Report filename, JSON path, safe supplied value, and correction guidance.
 - [x] Enforce UUID uniqueness across the package and detect exact content duplicates under different
       UUIDs in both the package and SQLite.
 - [x] Resolve source and relationship UUIDs against the complete package plus existing SQLite records.
 - [x] Distinguish inserts, unchanged records, conflicting updates, and warnings in text and JSON
       results.
 - [x] Guarantee validation opens no write transaction and add tests proving SQLite is unchanged.
+
+### M7.2.5 — Replace CSV input with one JSON lesson file
+
+Before persistence begins, complete
+[Milestone 7.2.5 — Single-File JSON Lesson Input](07.2.5-single-file-json-input.md). It supersedes the
+Milestone 6 directory-plus-CSV authoring contract, removes CSV input support rather than maintaining
+two formats, and makes one-file generation plus one-command publishing the intended weekly workflow.
 
 ### M7.3 — Persist the reusable knowledge graph and import history
 
@@ -85,7 +87,7 @@ of any export format.
       package contract.
 - [ ] Store import-run UUID, lesson UUID, package checksum, schema version, timestamp, and separate
       counts for inserted, updated, unchanged, and newly related records.
-- [ ] Add `tagalog lesson import <package>`.
+- [ ] Add `tagalog lesson import <lesson.json>`.
 - [ ] Treat an exact previously successful package checksum as an idempotent no-op that reports the
       original import run.
 - [ ] Insert new lesson, source, vocabulary, sentence, grammar, tag, semantic relationships, lesson

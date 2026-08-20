@@ -12,7 +12,6 @@ repositories {
 
 dependencies {
     implementation("info.picocli:picocli:4.7.7")
-    implementation("org.apache.commons:commons-csv:1.14.1")
     implementation("com.networknt:json-schema-validator:1.5.9")
     implementation("org.xerial:sqlite-jdbc:3.53.2.0")
     implementation("org.flywaydb:flyway-core:12.8.1")

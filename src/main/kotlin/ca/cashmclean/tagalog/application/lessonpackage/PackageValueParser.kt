@@ -7,9 +7,7 @@ import java.text.Normalizer
 import java.util.UUID
 
 internal object PackageValueParser {
-    const val MAX_FIELD_CHARS = 1_048_576
     private val canonicalUuid = Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
-    private val positiveInteger = Regex("^[0-9]+$")
 
     fun normalize(value: String): String = Normalizer.normalize(value.trim(), Normalizer.Form.NFC)
 
@@ -25,22 +23,6 @@ internal object PackageValueParser {
     inline fun <reified T : Enum<T>> enum(value: String, location: String): T =
         enumValues<T>().firstOrNull { it.name == value }
             ?: fail("$location has unsupported value '$value'")
-
-    fun positiveInteger(value: String, location: String): Int {
-        if (!positiveInteger.matches(value)) fail("$location must be a positive base-10 integer")
-        return value.toIntOrNull()?.takeIf { it > 0 }
-            ?: fail("$location is outside the supported integer range")
-    }
-
-    fun <T> pipeSeparated(value: String, location: String, convert: (String) -> T): Set<T> {
-        val normalized = normalize(value)
-        if (normalized.isBlank()) return emptySet()
-        val items = normalized.split('|').map(::normalize)
-        if (items.any(String::isBlank)) fail("$location contains a blank list item")
-        val converted = items.map(convert)
-        if (converted.toSet().size != converted.size) fail("$location contains a duplicate list item")
-        return converted.toSet()
-    }
 
     fun decodeUtf8(bytes: ByteArray, filename: String): String = try {
         strictUtf8Decoder().decode(ByteBuffer.wrap(bytes)).toString()

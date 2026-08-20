@@ -1,17 +1,23 @@
 {
-  "schema_version": 1,
-  "lesson": {
-    "id": "10000000-0000-4000-8000-000000000001",
-    "name": "Pagbati at pagpapakilala",
-    "description": "Mga pangunahing pagbati at magalang na pagpapakilala."
-  },
+  "schema_version": 2,
+  "lesson": { "id": "10000000-0000-4000-8000-000000000001", "name": "Pagbati at pagpapakilala", "description": "Mga pangunahing pagbati at magalang na pagpapakilala." },
   "sources": [
-    {
-      "id": "20000000-0000-4000-8000-000000000001",
-      "name": "Usapang Tagalog, Aralin 1",
-      "type": "BOOK",
-      "reference": "Kabanata 1, pahina 3–5"
-    }
+    { "id": "20000000-0000-4000-8000-000000000001", "name": "Usapang Tagalog, Aralin 1", "type": "BOOK", "reference": "Kabanata 1, pahina 3–5" }
   ],
-  "default_source_id": "20000000-0000-4000-8000-000000000001"
+  "default_source_id": "20000000-0000-4000-8000-000000000001",
+  "vocabulary": [
+    { "id": "30000000-0000-4000-8000-000000000001", "tagalog": "magandang umaga", "english": "good morning", "part_of_speech": "PHRASE", "difficulty": "BEGINNER", "frequency_rank": 42, "tags": ["pagbati", "oras"] },
+    { "id": "30000000-0000-4000-8000-000000000002", "tagalog": "ako", "english": "I", "part_of_speech": "PRONOUN", "difficulty": "BEGINNER", "frequency_rank": 5, "tags": ["panghalip"] },
+    { "id": "30000000-0000-4000-8000-000000000003", "tagalog": "ikaw", "english": "you", "part_of_speech": "PRONOUN", "difficulty": "BEGINNER", "frequency_rank": 8, "tags": ["panghalip"] },
+    { "id": "30000000-0000-4000-8000-000000000004", "tagalog": "po", "english": "politeness marker", "part_of_speech": "PARTICLE", "difficulty": "BEGINNER", "frequency_rank": 18, "tags": ["paggalang"] }
+  ],
+  "sentences": [
+    { "id": "50000000-0000-4000-8000-000000000001", "text": "Magandang umaga po.", "translation": "Good morning.", "difficulty": "BEGINNER", "vocabulary_ids": ["30000000-0000-4000-8000-000000000001", "30000000-0000-4000-8000-000000000004"], "grammar_ids": ["40000000-0000-4000-8000-000000000002"] },
+    { "id": "50000000-0000-4000-8000-000000000002", "text": "Ako si María.", "translation": "I am María.", "difficulty": "BEGINNER", "vocabulary_ids": ["30000000-0000-4000-8000-000000000002"], "grammar_ids": ["40000000-0000-4000-8000-000000000001"] },
+    { "id": "50000000-0000-4000-8000-000000000003", "text": "Ikaw po si José?", "translation": "Are you José?", "difficulty": "BEGINNER", "vocabulary_ids": ["30000000-0000-4000-8000-000000000003", "30000000-0000-4000-8000-000000000004"], "grammar_ids": ["40000000-0000-4000-8000-000000000001", "40000000-0000-4000-8000-000000000002"] }
+  ],
+  "grammar": [
+    { "id": "40000000-0000-4000-8000-000000000001", "name": "Pangungusap na di-karaniwan", "description": "Introduces a predicate before the topic, linked by ay in the inverted form.", "formula": "Panaguri + ang/si + Paksa" },
+    { "id": "40000000-0000-4000-8000-000000000002", "name": "Magalang na po", "description": "Adds po to show respect to the listener.", "formula": "Pahayag + po" }
+  ]
 }

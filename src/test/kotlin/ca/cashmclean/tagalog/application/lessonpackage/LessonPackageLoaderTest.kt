@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 
 class LessonPackageLoaderTest {
     @TempDir
@@ -16,10 +17,10 @@ class LessonPackageLoaderTest {
     private val loader = LessonPackageLoader()
 
     @Test
-    fun `loads canonical package into typed candidates`() {
-        val candidate = loader.load(Path.of("examples/lesson-package"))
+    fun `loads canonical JSON into typed candidates`() {
+        val candidate = loader.load(canonicalLesson())
 
-        assertEquals(1, candidate.schemaVersion)
+        assertEquals(2, candidate.schemaVersion)
         assertEquals("Pagbati at pagpapakilala", candidate.lesson.name)
         assertEquals(1, candidate.sources.size)
         assertEquals(4, candidate.vocabulary.size)
@@ -32,151 +33,108 @@ class LessonPackageLoaderTest {
     }
 
     @Test
-    fun `normalizes and trims strings once while preserving internal content`() {
-        writeMinimumMetadata(name = "  Cafe\u0301 lesson  ")
-        Files.writeString(
-            temporaryDirectory.resolve("sentences.csv"),
-            "id,text,translation,difficulty,source_id,vocabulary_ids,grammar_ids\r\n" +
-                "50000000-0000-4000-8000-000000000001,\"  Kumusta,\nkaibigan?  \",  Hello friend  ,,,,\r\n",
+    fun `normalizes strings and applies defaults once`() {
+        val file = writeLesson(
+            minimalJson(
+                lessonName = "  Cafe\u0301 lesson  ",
+                vocabulary = """[{"id":"30000000-0000-4000-8000-000000000001","tagalog":"  oo  ","english":"  yes  ","part_of_speech":"OTHER","tags":[]}]""",
+                sentences = """[{"id":"50000000-0000-4000-8000-000000000001","text":"  Kumusta,\nkaibigan?  ","translation":"  Hello friend  ","vocabulary_ids":[],"grammar_ids":[]}]""",
+            ),
         )
 
-        val candidate = loader.load(temporaryDirectory)
+        val candidate = loader.load(file)
 
         assertEquals("Café lesson", candidate.lesson.name)
-        assertEquals("Kumusta,\nkaibigan?", candidate.sentences.single().text)
-        assertEquals("Hello friend", candidate.sentences.single().translation)
-        assertEquals(Difficulty.BEGINNER, candidate.sentences.single().difficulty)
+        assertEquals("oo", candidate.vocabulary.single().tagalog)
+        assertEquals(Difficulty.BEGINNER, candidate.vocabulary.single().difficulty)
+        assertEquals("Kumusta,\nkaibigan?".replace("\\n", "\n"), candidate.sentences.single().text)
     }
 
     @Test
-    fun `ignores unknown files but requires a recognized csv`() {
-        writeMinimumMetadata()
-        Files.writeString(temporaryDirectory.resolve("notes.md"), "working notes")
+    fun `validates schema version before the rest of the document`() {
+        val file = writeLesson("""{"schema_version":1}""")
 
-        val error = assertThrows(LessonPackageException::class.java) { loader.load(temporaryDirectory) }
+        val error = assertThrows(LessonPackageException::class.java) { loader.load(file) }
 
-        assertTrue(error.message!!.contains("at least one recognized CSV"))
+        assertTrue(error.message!!.contains("supported integer 2"))
+        assertEquals("$.schema_version", error.diagnostics.single().path)
     }
 
     @Test
-    fun `validates schema version before other metadata fields`() {
-        Files.writeString(temporaryDirectory.resolve("lesson.json"), """{"schema_version":2}""")
-        writeHeaderOnlyVocabulary()
-
-        val error = assertThrows(LessonPackageException::class.java) { loader.load(temporaryDirectory) }
-
-        assertEquals("lesson.json schema_version must be the supported integer 1", error.message)
+    fun `rejects syntax duplicate properties unknown properties and null`() {
+        listOf(
+            "{",
+            minimalJson().replace("\"name\":\"Lesson\"", "\"name\":\"Lesson\",\"name\":\"Again\""),
+            minimalJson().dropLast(1) + ",\"unexpected\":true}",
+            minimalJson().replace("\"name\":\"Lesson\"", "\"name\":null"),
+            minimalJson().replace("\"sources\":[],", ""),
+        ).forEachIndexed { index, json ->
+            val file = temporaryDirectory.resolve("case-$index").also(Files::createDirectories).resolve("lesson.json")
+            Files.writeString(file, json)
+            assertTrue(assertThrows(LessonPackageException::class.java) { loader.load(file) }.diagnostics.isNotEmpty())
+        }
     }
 
     @Test
-    fun `rejects byte order marks explicitly`() {
-        writeMinimumMetadata()
-        val csv = "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n"
-        Files.write(temporaryDirectory.resolve("vocabulary.csv"), byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + csv.toByteArray())
-
-        val error = assertThrows(LessonPackageException::class.java) { loader.load(temporaryDirectory) }
-
-        assertTrue(error.message!!.contains("byte-order mark"))
-    }
-
-    @Test
-    fun `parses quoted commas quotes crlf lists enums and integers`() {
-        writeMinimumMetadata()
-        Files.writeString(
-            temporaryDirectory.resolve("vocabulary.csv"),
-            "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\r\n" +
-                "30000000-0000-4000-8000-000000000001,\"oo, \"\"talaga\"\"\",yes,,OTHER,ADVANCED,12,,one|two\r\n",
+    fun `reports every duplicate array item with a JSON path`() {
+        val json = minimalJson(
+            vocabulary = """[{"id":"30000000-0000-4000-8000-000000000001","tagalog":"oo","english":"yes","part_of_speech":"OTHER","tags":["one","one"]}]""",
         )
 
-        val row = loader.load(temporaryDirectory).vocabulary.single()
+        val result = loader.read(writeLesson(json))
 
-        assertEquals("oo, \"talaga\"", row.tagalog)
-        assertEquals(Difficulty.ADVANCED, row.difficulty)
-        assertEquals(12, row.frequencyRank)
-        assertEquals(setOf("one", "two"), row.tags)
+        assertTrue(result.diagnostics.count { it.path?.startsWith("$.vocabulary[0].tags[") == true } >= 2)
     }
 
     @Test
-    fun `rejects duplicate and blank list items`() {
-        writeMinimumMetadata()
-        Files.writeString(
-            temporaryDirectory.resolve("vocabulary.csv"),
-            "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n" +
-                "30000000-0000-4000-8000-000000000001,oo,yes,,OTHER,,,,one|one\n",
+    fun `rejects malformed UUID enum integer BOM and UTF-8`() {
+        val invalidValues = listOf(
+            minimalJson(vocabulary = """[{"id":"bad","tagalog":"oo","english":"yes","part_of_speech":"OTHER","tags":[]}]"""),
+            minimalJson(vocabulary = """[{"id":"30000000-0000-4000-8000-000000000001","tagalog":"oo","english":"yes","part_of_speech":"other","tags":[]}]"""),
+            minimalJson(vocabulary = """[{"id":"30000000-0000-4000-8000-000000000001","tagalog":"oo","english":"yes","part_of_speech":"OTHER","frequency_rank":-1,"tags":[]}]"""),
         )
-        assertTrue(assertThrows(LessonPackageException::class.java) { loader.load(temporaryDirectory) }.message!!.contains("duplicate"))
+        invalidValues.forEachIndexed { index, json ->
+            val file = temporaryDirectory.resolve("invalid-$index").also(Files::createDirectories).resolve("lesson.json")
+            Files.writeString(file, json)
+            assertThrows(LessonPackageException::class.java) { loader.load(file) }
+        }
 
-        Files.writeString(
-            temporaryDirectory.resolve("vocabulary.csv"),
-            "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n" +
-                "30000000-0000-4000-8000-000000000001,oo,yes,,OTHER,,,,one||two\n",
-        )
-        assertTrue(assertThrows(LessonPackageException::class.java) { loader.load(temporaryDirectory) }.message!!.contains("blank list item"))
+        val bom = temporaryDirectory.resolve("bom").also(Files::createDirectories).resolve("lesson.json")
+        Files.write(bom, byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + minimalJson().toByteArray())
+        assertTrue(assertThrows(LessonPackageException::class.java) { loader.load(bom) }.message!!.contains("byte-order mark"))
+
+        val invalidUtf8 = temporaryDirectory.resolve("utf8").also(Files::createDirectories).resolve("lesson.json")
+        Files.write(invalidUtf8, byteArrayOf(0xC3.toByte(), 0x28))
+        assertTrue(assertThrows(LessonPackageException::class.java) { loader.load(invalidUtf8) }.message!!.contains("UTF-8"))
     }
 
     @Test
-    fun `rejects malformed uuid enum integer and utf8 input`() {
-        writeMinimumMetadata()
-        fun vocabulary(id: String, part: String = "OTHER", rank: String = "") =
-            "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n" +
-                "$id,oo,yes,,$part,,$rank,,\n"
-
-        Files.writeString(temporaryDirectory.resolve("vocabulary.csv"), vocabulary("NOT-A-UUID"))
+    fun `rejects directories and CSV files`() {
         assertThrows(LessonPackageException::class.java) { loader.load(temporaryDirectory) }
-        Files.writeString(temporaryDirectory.resolve("vocabulary.csv"), vocabulary("30000000-0000-4000-8000-000000000001", "other"))
-        assertThrows(LessonPackageException::class.java) { loader.load(temporaryDirectory) }
-        Files.writeString(temporaryDirectory.resolve("vocabulary.csv"), vocabulary("30000000-0000-4000-8000-000000000001", rank = "-1"))
-        assertThrows(LessonPackageException::class.java) { loader.load(temporaryDirectory) }
-        Files.write(temporaryDirectory.resolve("vocabulary.csv"), byteArrayOf(0xC3.toByte(), 0x28))
-        assertThrows(LessonPackageException::class.java) { loader.load(temporaryDirectory) }
+        val csv = temporaryDirectory.resolve("vocabulary.csv")
+        Files.writeString(csv, "id,tagalog")
+        assertThrows(LessonPackageException::class.java) { loader.load(csv) }
     }
 
     @Test
-    fun `validation reports every kind of header problem before parsing rows`() {
-        writeMinimumMetadata()
-        Files.writeString(
-            temporaryDirectory.resolve("grammar.csv"),
-            "id,Name,description,source_id,source_id,unexpected\n" +
-                "bad-id,,,,,\n",
-        )
+    fun `rejects an oversized JSON file before reading it`() {
+        val file = temporaryDirectory.resolve("lesson.json")
+        Files.newByteChannel(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE).use { channel ->
+            channel.position(LessonPackageLoader.MAX_FILE_BYTES)
+            channel.write(java.nio.ByteBuffer.wrap(byteArrayOf(0)))
+        }
 
-        val result = loader.read(temporaryDirectory)
-
-        assertTrue(result.diagnostics.any { it.message.contains("incorrect case") && it.guidance.contains("name") })
-        assertTrue(result.diagnostics.any { it.message.contains("Missing column 'formula'") })
-        assertTrue(result.diagnostics.any { it.message.contains("Duplicate column 'source_id'") })
-        assertTrue(result.diagnostics.any { it.message.contains("Unexpected column 'unexpected'") })
-        assertTrue(result.diagnostics.all { it.row == 0L })
-        assertTrue(result.diagnostics.none { it.message.contains("UUID") }, "Rows must not be parsed after an invalid header")
+        assertTrue(assertThrows(LessonPackageException::class.java) { loader.load(file) }.message!!.contains("byte limit"))
     }
 
-    @Test
-    fun `validation collects independent malformed rows`() {
-        writeMinimumMetadata()
-        Files.writeString(
-            temporaryDirectory.resolve("vocabulary.csv"),
-            "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n" +
-                "bad-id,oo,yes,,OTHER,,,,\n" +
-                "30000000-0000-4000-8000-000000000001,hindi,no,,wrong-enum,,,,\n",
-        )
+    private fun canonicalLesson() = Path.of("examples/lesson-package/lesson.json")
 
-        val result = loader.read(temporaryDirectory)
+    private fun writeLesson(json: String): Path = temporaryDirectory.resolve("lesson.json").also { Files.writeString(it, json) }
 
-        assertEquals(listOf(1L, 2L), result.diagnostics.map { it.row })
-        assertTrue(result.diagnostics.all { it.filename == "vocabulary.csv" })
-    }
-
-    private fun writeMinimumMetadata(name: String = "Lesson") {
-        Files.writeString(
-            temporaryDirectory.resolve("lesson.json"),
-            """{"schema_version":1,"lesson":{"id":"10000000-0000-4000-8000-000000000001","name":"$name"},"sources":[]}""",
-        )
-    }
-
-    private fun writeHeaderOnlyVocabulary() {
-        Files.writeString(
-            temporaryDirectory.resolve("vocabulary.csv"),
-            "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n",
-        )
-    }
+    private fun minimalJson(
+        lessonName: String = "Lesson",
+        vocabulary: String = "[]",
+        sentences: String = "[]",
+        grammar: String = """[{"id":"40000000-0000-4000-8000-000000000001","name":"Concept","description":"Description","formula":"Formula"}]""",
+    ) = """{"schema_version":2,"lesson":{"id":"10000000-0000-4000-8000-000000000001","name":"$lessonName"},"sources":[],"vocabulary":$vocabulary,"sentences":$sentences,"grammar":$grammar}"""
 }

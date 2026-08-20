@@ -6,8 +6,8 @@ class LessonPackageValidator(
     private val loader: LessonPackageLoader,
     private val repositories: KnowledgeRepositories,
 ) {
-    fun validate(packageDirectory: Path): LessonPackageValidationResult {
-        val loaded = loader.read(packageDirectory)
+    fun validate(lessonFile: Path): LessonPackageValidationResult {
+        val loaded = loader.read(lessonFile)
         val candidate = loaded.lessonPackage
             ?: return LessonPackageValidationResult(null, loaded.diagnostics, emptyList(), emptyList())
         return validate(candidate, repositories.readStoredKnowledge(), loaded.diagnostics)
