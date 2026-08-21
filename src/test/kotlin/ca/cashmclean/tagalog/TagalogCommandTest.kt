@@ -114,7 +114,7 @@ class TagalogCommandTest {
     fun `Lesson validate supports text and JSON without changing SQLite`() {
         withTemporaryDatabase {
             assertEquals(0, execute("init").exitCode)
-            val packagePath = Path.of("examples/lesson-package").toAbsolutePath().toString()
+            val packagePath = Path.of("examples/lesson-package/lesson.json").toAbsolutePath().toString()
             val before = contentRowCount()
 
             val text = execute("lesson", "validate", packagePath)
@@ -134,7 +134,7 @@ class TagalogCommandTest {
     fun `Lesson import reports counts and an exact rerun in text and JSON`() {
         withTemporaryDatabase {
             assertEquals(0, execute("init").exitCode)
-            val packagePath = Path.of("examples/lesson-package").toAbsolutePath().toString()
+            val packagePath = Path.of("examples/lesson-package/lesson.json").toAbsolutePath().toString()
 
             val imported = execute("lesson", "import", packagePath)
             val rerun = execute("lesson", "import", packagePath, "--format", "json")
@@ -174,7 +174,7 @@ class TagalogCommandTest {
     fun `Lesson show includes provenance, relationships, counts, and import history`() {
         withTemporaryDatabase {
             execute("init")
-            val packagePath = Path.of("examples/lesson-package").toAbsolutePath().toString()
+            val packagePath = Path.of("examples/lesson-package/lesson.json").toAbsolutePath().toString()
             execute("lesson", "import", packagePath)
             val lessonId = "10000000-0000-4000-8000-000000000001"
 
@@ -215,7 +215,7 @@ class TagalogCommandTest {
     fun `Entity show reports complete content, relationships, and lesson provenance`() {
         withTemporaryDatabase {
             execute("init")
-            execute("lesson", "import", Path.of("examples/lesson-package").toAbsolutePath().toString())
+            execute("lesson", "import", Path.of("examples/lesson-package/lesson.json").toAbsolutePath().toString())
 
             val vocabulary = execute("vocabulary", "show", "30000000-0000-4000-8000-000000000004", "--format", "json")
             val sentence = execute("sentence", "show", "50000000-0000-4000-8000-000000000003", "--format", "json")
@@ -241,7 +241,7 @@ class TagalogCommandTest {
     fun `Explicit deletion refuses references, then removes sentence associations and prints an Anki notice`() {
         withTemporaryDatabase {
             execute("init")
-            execute("lesson", "import", Path.of("examples/lesson-package").toAbsolutePath().toString())
+            execute("lesson", "import", Path.of("examples/lesson-package/lesson.json").toAbsolutePath().toString())
             val vocabularyId = "30000000-0000-4000-8000-000000000001"
             val sentenceId = "50000000-0000-4000-8000-000000000001"
 
@@ -295,7 +295,7 @@ class TagalogCommandTest {
     fun `Anki export matches fixtures, is repeatable, and protects destinations`() {
         withTemporaryDatabase {
             execute("init")
-            execute("lesson", "import", Path.of("examples/lesson-package").toAbsolutePath().toString())
+            execute("lesson", "import", Path.of("examples/lesson-package/lesson.json").toAbsolutePath().toString())
             val lessonId = "10000000-0000-4000-8000-000000000001"
             val first = temporaryDirectory.resolve("export-one")
             val second = temporaryDirectory.resolve("export-two")
@@ -325,7 +325,7 @@ class TagalogCommandTest {
     fun `Anki export omits empty TSVs, uses requested lesson provenance, and includes global grammar examples`() {
         withTemporaryDatabase {
             execute("init")
-            execute("lesson", "import", Path.of("examples/lesson-package").toAbsolutePath().toString())
+            execute("lesson", "import", Path.of("examples/lesson-package/lesson.json").toAbsolutePath().toString())
             val lessonId = "90000000-0000-4000-8000-000000000001"
             val sourceId = "90000000-0000-4000-8000-000000000002"
             DriverManager.getConnection(databaseUrl()).use { connection ->
@@ -350,7 +350,7 @@ class TagalogCommandTest {
     fun `Publish composes the workflow and retains a successful import when a later export fails`() {
         withTemporaryDatabase {
             execute("init")
-            val packagePath = Path.of("examples/lesson-package").toAbsolutePath().toString()
+            val packagePath = Path.of("examples/lesson-package/lesson.json").toAbsolutePath().toString()
             val published = temporaryDirectory.resolve("published")
             val success = execute("lesson", "publish", packagePath, "--output", published.toString(), "--format", "json")
             assertEquals(0, success.exitCode)
@@ -377,15 +377,13 @@ class TagalogCommandTest {
     fun `Weekly workflow supports correction cross-week reuse provenance and repeated exports`() {
         withTemporaryDatabase {
             execute("init")
-            val firstPackage = Path.of("examples/lesson-package").toAbsolutePath()
-            val secondPackage = Path.of("examples/lesson-package-week-2").toAbsolutePath()
+            val firstPackage = Path.of("examples/lesson-package/lesson.json").toAbsolutePath()
+            val secondPackage = Path.of("examples/lesson-package-week-2/lesson.json").toAbsolutePath()
             assertEquals(0, execute("lesson", "validate", firstPackage.toString(), "--format", "json").exitCode)
             assertEquals(0, execute("lesson", "import", firstPackage.toString()).exitCode)
 
-            val corrected = temporaryDirectory.resolve("corrected-package")
-            copyDirectory(firstPackage, corrected)
-            val vocabulary = corrected.resolve("vocabulary.csv")
-            Files.writeString(vocabulary, Files.readString(vocabulary).replace("politeness marker", "respect marker"))
+            val corrected = temporaryDirectory.resolve("lesson.json")
+            Files.writeString(corrected, Files.readString(firstPackage).replace("politeness marker", "respect marker"))
             assertEquals(2, execute("lesson", "import", corrected.toString()).exitCode)
             assertEquals(0, execute("lesson", "import", corrected.toString(), "--update-existing").exitCode)
 

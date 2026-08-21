@@ -1,8 +1,7 @@
 package ca.cashmclean.tagalog.application.lessonpackage
 
 import ca.cashmclean.tagalog.infrastructure.database.DatabaseConfig
-import ca.cashmclean.tagalog.infrastructure.database.LessonPackageSnapshotReader
-import java.nio.ByteBuffer
+import ca.cashmclean.tagalog.infrastructure.database.SqliteKnowledgeRepositories
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
@@ -36,17 +35,17 @@ class LessonPackageImporter(
     private val clock: () -> Instant = Instant::now,
     private val idGenerator: () -> UUID = UUID::randomUUID,
 ) {
-    fun importPackage(packageDirectory: Path, updateExisting: Boolean = false): LessonImportResult {
-        val checksum = LessonPackageChecksum.calculate(packageDirectory)
+    fun importPackage(lessonFile: Path, updateExisting: Boolean = false): LessonImportResult {
+        val checksum = LessonPackageChecksum.calculate(lessonFile)
         DriverManager.getConnection(config.jdbcUrl).use { connection ->
             previousRun(connection, checksum)?.let { return it.copy(exactRerun = true) }
         }
 
-        val loaded = loader.loadForValidation(packageDirectory)
-        val candidate = loaded.candidate
-            ?: throw LessonPackageImportException("Lesson package is invalid.", LessonPackageValidationResult(null, loaded.errors, emptyList(), emptyList()))
-        val validator = LessonPackageValidator(loader) { LessonPackageSnapshotReader(config).read() }
-        val validation = validator.validate(candidate, loadErrors = loaded.errors, allowUpdates = updateExisting)
+        val loaded = loader.read(lessonFile)
+        val candidate = loaded.lessonPackage
+            ?: throw LessonPackageImportException("Lesson package is invalid.", LessonPackageValidationResult(null, loaded.diagnostics, emptyList(), emptyList()))
+        val validator = LessonPackageValidator(loader, SqliteKnowledgeRepositories(config).create())
+        val validation = validator.validate(candidate, loadErrors = loaded.diagnostics, allowUpdates = updateExisting)
         if (!validation.isValid) throw LessonPackageImportException(
             "Lesson package is invalid: ${validation.errors.joinToString("; ") { it.message }}",
             validation,
@@ -228,23 +227,9 @@ class LessonPackageImporter(
 }
 
 object LessonPackageChecksum {
-    private val recognizedFiles = listOf("lesson.json", "vocabulary.csv", "sentences.csv", "grammar.csv")
-
-    fun calculate(packageDirectory: Path): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        recognizedFiles.forEach { filename ->
-            val path = packageDirectory.resolve(filename)
-            if (Files.isRegularFile(path)) {
-                val name = filename.toByteArray(Charsets.UTF_8)
-                val content = Files.readAllBytes(path)
-                digest.update(ByteBuffer.allocate(4).putInt(name.size).array())
-                digest.update(name)
-                digest.update(ByteBuffer.allocate(8).putLong(content.size.toLong()).array())
-                digest.update(content)
-            }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }
-    }
+    fun calculate(lessonFile: Path): String = MessageDigest.getInstance("SHA-256")
+        .digest(Files.readAllBytes(lessonFile))
+        .joinToString("") { "%02x".format(it) }
 }
 
 private data class NullableQueryResult(val found: Boolean, val value: String?)

@@ -46,15 +46,13 @@ class LessonPackageImporterTest {
         val importer = importer()
         importer.importPackage(samplePackage())
         val corrected = copySample("corrected")
-        val sentenceFile = corrected.resolve("sentences.csv")
         Files.writeString(
-            sentenceFile,
-            Files.readString(sentenceFile)
+            corrected,
+            Files.readString(corrected)
                 .replace("Magandang umaga po.", "Magandang umaga po!")
-                .replace(",40000000-0000-4000-8000-000000000002\n", ",\n"),
+                .replace("\"grammar_ids\": [\"40000000-0000-4000-8000-000000000002\"]", "\"grammar_ids\": []")
+                .replace("[\"pagbati\", \"oras\"]", "[\"pagbati\"]"),
         )
-        val vocabularyFile = corrected.resolve("vocabulary.csv")
-        Files.writeString(vocabularyFile, Files.readString(vocabularyFile).replace("pagbati|oras", "pagbati"))
 
         val conflict = assertThrows(LessonPackageImportException::class.java) {
             importer.importPackage(corrected)
@@ -77,34 +75,18 @@ class LessonPackageImporterTest {
         migrate()
         val importer = importer()
         importer.importPackage(samplePackage())
-        val second = temporaryDirectory.resolve("second-package")
-        Files.createDirectories(second)
+        val second = temporaryDirectory.resolve("lesson.json")
         Files.writeString(
-            second.resolve("lesson.json"),
+            second,
             """{
-              "schema_version": 1,
+              "schema_version": 2,
               "lesson": {"id":"10000000-0000-4000-8000-000000000002","name":"Second lesson"},
               "sources": [{"id":"20000000-0000-4000-8000-000000000002","name":"Second source","type":"TEACHER"}],
-              "default_source_id":"20000000-0000-4000-8000-000000000002"
+              "default_source_id":"20000000-0000-4000-8000-000000000002",
+              "vocabulary":[{"id":"30000000-0000-4000-8000-000000000001","tagalog":"magandang umaga","english":"good morning","part_of_speech":"PHRASE","difficulty":"BEGINNER","frequency_rank":42,"tags":["oras","pagbati"]}],
+              "grammar":[{"id":"40000000-0000-4000-8000-000000000001","name":"Pangungusap na di-karaniwan","description":"Introduces a predicate before the topic, linked by ay in the inverted form.","formula":"Panaguri + ang/si + Paksa"}],
+              "sentences":[{"id":"50000000-0000-4000-8000-000000000002","text":"Ako si María.","translation":"I am María.","difficulty":"BEGINNER","vocabulary_ids":["30000000-0000-4000-8000-000000000002"],"grammar_ids":["40000000-0000-4000-8000-000000000001"]}]
             }""".trimIndent(),
-        )
-        Files.writeString(
-            second.resolve("vocabulary.csv"),
-            """id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags
-            30000000-0000-4000-8000-000000000001,magandang umaga,good morning,,PHRASE,BEGINNER,42,,oras|pagbati
-            """.trimIndent(),
-        )
-        Files.writeString(
-            second.resolve("grammar.csv"),
-            """id,name,description,formula,source_id
-            40000000-0000-4000-8000-000000000001,Pangungusap na di-karaniwan,"Introduces a predicate before the topic, linked by ay in the inverted form.",Panaguri + ang/si + Paksa,
-            """.trimIndent(),
-        )
-        Files.writeString(
-            second.resolve("sentences.csv"),
-            """id,text,translation,difficulty,source_id,vocabulary_ids,grammar_ids
-            50000000-0000-4000-8000-000000000002,Ako si María.,I am María.,BEGINNER,,30000000-0000-4000-8000-000000000002,40000000-0000-4000-8000-000000000001
-            """.trimIndent(),
         )
 
         val result = importer.importPackage(second)
@@ -138,17 +120,10 @@ class LessonPackageImporterTest {
         migrate()
         val importer = importer()
         importer.importPackage(samplePackage())
-        val second = temporaryDirectory.resolve("relationship-package")
-        Files.createDirectories(second)
+        val second = temporaryDirectory.resolve("lesson.json")
         Files.writeString(
-            second.resolve("lesson.json"),
-            """{"schema_version":1,"lesson":{"id":"10000000-0000-4000-8000-000000000003","name":"Cross week"},"sources":[]}""",
-        )
-        Files.writeString(
-            second.resolve("sentences.csv"),
-            """id,text,translation,difficulty,source_id,vocabulary_ids,grammar_ids
-            50000000-0000-4000-8000-000000000099,Ako po.,I (polite).,BEGINNER,,30000000-0000-4000-8000-000000000002|30000000-0000-4000-8000-000000000004,40000000-0000-4000-8000-000000000002
-            """.trimIndent(),
+            second,
+            """{"schema_version":2,"lesson":{"id":"10000000-0000-4000-8000-000000000003","name":"Cross week"},"sources":[],"vocabulary":[],"sentences":[{"id":"50000000-0000-4000-8000-000000000099","text":"Ako po.","translation":"I (polite).","difficulty":"BEGINNER","vocabulary_ids":["30000000-0000-4000-8000-000000000002","30000000-0000-4000-8000-000000000004"],"grammar_ids":["40000000-0000-4000-8000-000000000002"]}],"grammar":[]}""",
         )
 
         importer.importPackage(second)
@@ -162,22 +137,18 @@ class LessonPackageImporterTest {
         migrate()
         val importer = importer()
         importer.importPackage(samplePackage())
-        val correction = temporaryDirectory.resolve("provenance-conflict")
-        Files.createDirectories(correction)
+        val correction = temporaryDirectory.resolve("lesson.json")
         Files.writeString(
-            correction.resolve("lesson.json"),
+            correction,
             """{
-              "schema_version":1,
+              "schema_version":2,
               "lesson":{"id":"10000000-0000-4000-8000-000000000001","name":"Pagbati at pagpapakilala","description":"Mga pangunahing pagbati at magalang na pagpapakilala."},
               "sources":[{"id":"20000000-0000-4000-8000-000000000099","name":"Corrected source","type":"TEACHER"}],
-              "default_source_id":"20000000-0000-4000-8000-000000000099"
+              "default_source_id":"20000000-0000-4000-8000-000000000099",
+              "vocabulary":[{"id":"30000000-0000-4000-8000-000000000001","tagalog":"magandang umaga","english":"good morning","part_of_speech":"PHRASE","difficulty":"BEGINNER","frequency_rank":42,"tags":["pagbati","oras"]}],
+              "sentences":[],
+              "grammar":[]
             }""".trimIndent(),
-        )
-        Files.writeString(
-            correction.resolve("vocabulary.csv"),
-            """id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags
-            30000000-0000-4000-8000-000000000001,magandang umaga,good morning,,PHRASE,BEGINNER,42,,pagbati|oras
-            """.trimIndent(),
         )
 
         assertThrows(LessonPackageImportException::class.java) { importer.importPackage(correction) }
@@ -229,14 +200,13 @@ class LessonPackageImporterTest {
     private fun migrate() = DatabaseManager(config()).migrate()
     private fun importer() = LessonPackageImporter(config())
     private fun config() = DatabaseConfig(temporaryDirectory.resolve("tagalog.db"))
-    private fun samplePackage() = Path.of("examples/lesson-package").toAbsolutePath()
+    private fun samplePackage() = Path.of("examples/lesson-package/lesson.json").toAbsolutePath()
 
     private fun copySample(name: String): Path {
-        val target = temporaryDirectory.resolve(name)
-        Files.createDirectories(target)
-        Files.list(samplePackage()).use { paths ->
-            paths.filter(Files::isRegularFile).forEach { Files.copy(it, target.resolve(it.fileName)) }
-        }
+        val directory = temporaryDirectory.resolve(name)
+        Files.createDirectories(directory)
+        val target = directory.resolve("lesson.json")
+        Files.copy(samplePackage(), target)
         return target
     }
 

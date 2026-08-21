@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "lesson": {
     "id": "10000000-0000-4000-8000-000000000002",
     "name": "Magalang na pag-uusap",
@@ -13,5 +13,15 @@
       "reference": "Kabanata 2, pahina 8–10"
     }
   ],
-  "default_source_id": "20000000-0000-4000-8000-000000000002"
+  "default_source_id": "20000000-0000-4000-8000-000000000002",
+  "vocabulary": [
+    { "id": "30000000-0000-4000-8000-000000000004", "tagalog": "po", "english": "respect marker", "part_of_speech": "PARTICLE", "difficulty": "BEGINNER", "frequency_rank": 18, "tags": ["paggalang"] }
+  ],
+  "sentences": [
+    { "id": "50000000-0000-4000-8000-000000000001", "text": "Magandang umaga po.", "translation": "Good morning.", "difficulty": "BEGINNER", "vocabulary_ids": ["30000000-0000-4000-8000-000000000001", "30000000-0000-4000-8000-000000000004"], "grammar_ids": ["40000000-0000-4000-8000-000000000002"] },
+    { "id": "50000000-0000-4000-8000-000000000004", "text": "Salamat po.", "translation": "Thank you.", "difficulty": "BEGINNER", "vocabulary_ids": ["30000000-0000-4000-8000-000000000004"], "grammar_ids": ["40000000-0000-4000-8000-000000000002"] }
+  ],
+  "grammar": [
+    { "id": "40000000-0000-4000-8000-000000000002", "name": "Magalang na po", "description": "Adds po to show respect to the listener.", "formula": "Pahayag + po" }
+  ]
 }

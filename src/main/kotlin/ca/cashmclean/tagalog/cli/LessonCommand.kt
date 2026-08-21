@@ -7,7 +7,7 @@ import ca.cashmclean.tagalog.application.lessonpackage.LessonPackageValidationRe
 import ca.cashmclean.tagalog.application.lessonpackage.LessonPackageValidator
 import ca.cashmclean.tagalog.application.lessonpackage.PackageDiagnostic
 import ca.cashmclean.tagalog.infrastructure.database.DatabaseConfig
-import ca.cashmclean.tagalog.infrastructure.database.LessonPackageSnapshotReader
+import ca.cashmclean.tagalog.infrastructure.database.SqliteKnowledgeRepositories
 import ca.cashmclean.tagalog.infrastructure.database.JdbcKnowledgeGraphQueries
 import ca.cashmclean.tagalog.application.LessonDetail
 import ca.cashmclean.tagalog.application.LessonEntityView
@@ -125,8 +125,8 @@ class ShowLessonCommand : java.util.concurrent.Callable<Int> {
 
 @Command(name = "validate", description = ["Validate a lesson package without modifying SQLite."])
 class ValidateLessonCommand : java.util.concurrent.Callable<Int> {
-    @Parameters(index = "0", paramLabel = "<package>")
-    lateinit var packageDirectory: Path
+    @Parameters(index = "0", paramLabel = "<lesson.json>")
+    lateinit var lessonFile: Path
 
     @Option(names = ["--format"], defaultValue = "text")
     lateinit var format: OutputFormat
@@ -136,8 +136,8 @@ class ValidateLessonCommand : java.util.concurrent.Callable<Int> {
 
     override fun call(): Int {
         val config = DatabaseConfig.fromEnvironment()
-        val validator = LessonPackageValidator(LessonPackageLoader()) { LessonPackageSnapshotReader(config).read() }
-        val result = validator.validate(packageDirectory, allowUpdates = updateExisting)
+        val validator = LessonPackageValidator(LessonPackageLoader(), SqliteKnowledgeRepositories(config).create())
+        val result = validator.validate(lessonFile, allowUpdates = updateExisting)
         when (format) {
             OutputFormat.text -> printText(result)
             OutputFormat.json -> println(ObjectMapper().writeValueAsString(result.toJson()))
@@ -153,14 +153,13 @@ class ValidateLessonCommand : java.util.concurrent.Callable<Int> {
             stream.println("Lesson package is invalid (${result.errors.size} errors).")
             result.errors.forEach { stream.println(it.asText()) }
         }
-        stream.println("Records: ${result.inserts} insert, ${result.unchanged} unchanged, ${result.conflicts} conflict.")
+        stream.println("Records: ${result.inserts} insert, ${result.updates} update, ${result.unchanged} unchanged, ${result.conflicts} conflict.")
         if (result.warnings.isNotEmpty()) stream.println("Warnings: ${result.warnings.size}")
     }
 
     private fun PackageDiagnostic.asText(): String = buildString {
         append(filename)
-        row?.let { append(":").append(it) }
-        column?.let { append(" [").append(it).append("]") }
+        path?.let { append(" ").append(it) }
         append(": ").append(message)
         value?.let { append(" Supplied: '").append(it).append("'.") }
         append(" ").append(guidance)
@@ -184,8 +183,7 @@ class ValidateLessonCommand : java.util.concurrent.Callable<Int> {
 
     private fun PackageDiagnostic.toJson(): Map<String, Any?> = linkedMapOf(
         "filename" to filename,
-        "row" to row,
-        "column" to column,
+        "path" to path,
         "value" to value,
         "message" to message,
         "guidance" to guidance,
@@ -194,8 +192,8 @@ class ValidateLessonCommand : java.util.concurrent.Callable<Int> {
 
 @Command(name = "import", description = ["Validate and atomically import a lesson package."])
 class ImportLessonCommand : java.util.concurrent.Callable<Int> {
-    @Parameters(index = "0", paramLabel = "<package>")
-    lateinit var packageDirectory: Path
+    @Parameters(index = "0", paramLabel = "<lesson.json>")
+    lateinit var lessonFile: Path
 
     @Option(names = ["--update-existing"])
     var updateExisting: Boolean = false
@@ -205,7 +203,7 @@ class ImportLessonCommand : java.util.concurrent.Callable<Int> {
 
     override fun call(): Int {
         return try {
-            val result = LessonPackageImporter(DatabaseConfig.fromEnvironment()).importPackage(packageDirectory, updateExisting)
+            val result = LessonPackageImporter(DatabaseConfig.fromEnvironment()).importPackage(lessonFile, updateExisting)
             when (format) {
                 OutputFormat.text -> {
                     val action = if (result.exactRerun) "already imported" else "imported"
@@ -256,11 +254,11 @@ class ImportLessonCommand : java.util.concurrent.Callable<Int> {
 
 @Command(name = "publish", description = ["Validate, import, and export one lesson package."])
 class PublishLessonCommand : java.util.concurrent.Callable<Int> {
-    @Parameters(index = "0", paramLabel = "<package>")
-    lateinit var packageDirectory: Path
+    @Parameters(index = "0", paramLabel = "<lesson.json>")
+    lateinit var lessonFile: Path
 
-    @Option(names = ["--output"], required = true)
-    lateinit var output: Path
+    @Option(names = ["--output"])
+    var output: Path? = null
 
     @Option(names = ["--update-existing"])
     var updateExisting: Boolean = false
@@ -270,8 +268,8 @@ class PublishLessonCommand : java.util.concurrent.Callable<Int> {
 
     override fun call(): Int {
         val config = DatabaseConfig.fromEnvironment()
-        val validation = LessonPackageValidator(LessonPackageLoader()) { LessonPackageSnapshotReader(config).read() }
-            .validate(packageDirectory, allowUpdates = updateExisting)
+        val validation = LessonPackageValidator(LessonPackageLoader(), SqliteKnowledgeRepositories(config).create())
+            .validate(lessonFile, allowUpdates = updateExisting)
         if (!validation.isValid) {
             if (format == OutputFormat.json) System.err.println(commandJson.writeValueAsString(linkedMapOf(
                 "success" to false, "stage" to "validation", "imported" to false, "exported" to false,
@@ -284,7 +282,7 @@ class PublishLessonCommand : java.util.concurrent.Callable<Int> {
         }
 
         val imported = try {
-            LessonPackageImporter(config).importPackage(packageDirectory, updateExisting)
+            LessonPackageImporter(config).importPackage(lessonFile, updateExisting)
         } catch (exception: LessonPackageImportException) {
             if (format == OutputFormat.json) System.err.println(commandJson.writeValueAsString(linkedMapOf(
                 "success" to false, "stage" to "import", "imported" to false, "exported" to false,
@@ -295,7 +293,8 @@ class PublishLessonCommand : java.util.concurrent.Callable<Int> {
         }
 
         return try {
-            val exported = LessonExportService(JdbcLessonExportQueries(config)).export(imported.lessonId, output)
+            val destination = output ?: defaultPublishOutput(imported)
+            val exported = LessonExportService(JdbcLessonExportQueries(config)).export(imported.lessonId, destination)
             if (format == OutputFormat.json) println(commandJson.writeValueAsString(linkedMapOf(
                 "success" to true, "stage" to "complete", "imported" to true, "exported" to true,
                 "lesson_id" to imported.lessonId.toString(), "import_run_id" to imported.importRunId.toString(),
@@ -307,7 +306,8 @@ class PublishLessonCommand : java.util.concurrent.Callable<Int> {
             }
             0
         } catch (exception: LessonExportException) {
-            val retry = retryCommand(imported.lessonId, output)
+            val destination = output ?: defaultPublishOutput(imported)
+            val retry = retryCommand(imported.lessonId, destination)
             if (format == OutputFormat.json) System.err.println(commandJson.writeValueAsString(linkedMapOf(
                 "success" to false, "stage" to "export", "imported" to true, "exported" to false,
                 "lesson_id" to imported.lessonId.toString(), "import_run_id" to imported.importRunId.toString(),
@@ -325,12 +325,14 @@ class PublishLessonCommand : java.util.concurrent.Callable<Int> {
         "tagalog anki export --lesson $lessonId --output ${shellQuote(destination.toString())}${if (format == OutputFormat.json) " --format json" else ""}"
 
     private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
+
+    private fun defaultPublishOutput(imported: ca.cashmclean.tagalog.application.lessonpackage.LessonImportResult): Path =
+        Path.of("exports", imported.lessonId.toString(), imported.importedAt.replace(':', '-'))
 }
 
 private fun PackageDiagnostic.asText(): String = buildString {
     append(filename)
-    row?.let { append(":").append(it) }
-    column?.let { append(" [").append(it).append("]") }
+    path?.let { append(" ").append(it) }
     append(": ").append(message)
     value?.let { append(" Supplied: '").append(it).append("'.") }
     append(" ").append(guidance)
@@ -338,8 +340,7 @@ private fun PackageDiagnostic.asText(): String = buildString {
 
 private fun PackageDiagnostic.toJson(): Map<String, Any?> = linkedMapOf(
     "filename" to filename,
-    "row" to row,
-    "column" to column,
+    "path" to path,
     "value" to value,
     "message" to message,
     "guidance" to guidance,

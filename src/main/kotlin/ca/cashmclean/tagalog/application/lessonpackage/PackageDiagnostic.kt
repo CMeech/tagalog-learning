@@ -2,8 +2,7 @@ package ca.cashmclean.tagalog.application.lessonpackage
 
 data class PackageDiagnostic(
     val filename: String,
-    val row: Long? = null,
-    val column: String? = null,
+    val path: String? = null,
     val value: String? = null,
     val message: String,
     val guidance: String,
@@ -15,8 +14,3 @@ data class PackageDiagnostic(
         }
     }
 }
-
-data class LessonPackageLoadResult(
-    val candidate: LessonPackageCandidate?,
-    val errors: List<PackageDiagnostic>,
-)

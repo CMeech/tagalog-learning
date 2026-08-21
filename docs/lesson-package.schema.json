@@ -1,62 +1,65 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cashmclean.ca/tagalog/lesson-package.schema.json",
-  "title": "Tagalog lesson package manifest",
-  "description": "Manifest for one version 1 Tagalog lesson package. Contract files are UTF-8 and NFC normalized.",
+  "title": "Tagalog lesson package",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "lesson", "sources"],
+  "required": ["schema_version", "lesson", "sources", "vocabulary", "sentences", "grammar"],
   "properties": {
-    "schema_version": {
-      "description": "Lesson package contract version.",
-      "const": 1
-    },
+    "schema_version": { "const": 2 },
     "lesson": { "$ref": "#/$defs/lesson" },
-    "sources": {
-      "description": "Sources represented in this package. May be empty; source IDs must be unique.",
-      "type": "array",
-      "items": { "$ref": "#/$defs/source" }
-    },
-    "default_source_id": {
-      "description": "Source applied to CSV rows with a blank source_id. When present, it must match an ID in sources.",
-      "$ref": "#/$defs/uuid"
-    }
+    "sources": { "type": "array", "maxItems": 100000, "items": { "$ref": "#/$defs/source" } },
+    "default_source_id": { "$ref": "#/$defs/uuid" },
+    "vocabulary": { "type": "array", "maxItems": 100000, "items": { "$ref": "#/$defs/vocabulary" } },
+    "sentences": { "type": "array", "maxItems": 100000, "items": { "$ref": "#/$defs/sentence" } },
+    "grammar": { "type": "array", "maxItems": 100000, "items": { "$ref": "#/$defs/grammar" } }
   },
+  "anyOf": [
+    { "properties": { "vocabulary": { "minItems": 1 } } },
+    { "properties": { "sentences": { "minItems": 1 } } },
+    { "properties": { "grammar": { "minItems": 1 } } }
+  ],
   "$defs": {
-    "uuid": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-    },
-    "nonBlank": {
-      "type": "string",
-      "minLength": 1,
-      "pattern": "\\S"
-    },
+    "uuid": { "type": "string", "maxLength": 1048576, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "nonBlank": { "type": "string", "minLength": 1, "maxLength": 1048576, "pattern": "\\S" },
+    "difficulty": { "type": "string", "enum": ["BEGINNER", "INTERMEDIATE", "ADVANCED"] },
     "lesson": {
-      "description": "The single lesson represented by this package.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "name"],
-      "properties": {
-        "id": { "description": "Stable domain UUID for the lesson.", "$ref": "#/$defs/uuid" },
-        "name": { "description": "Lesson name.", "$ref": "#/$defs/nonBlank" },
-        "description": { "description": "Optional lesson description; no default.", "$ref": "#/$defs/nonBlank" }
-      }
+      "type": "object", "additionalProperties": false, "required": ["id", "name"],
+      "properties": { "id": { "$ref": "#/$defs/uuid" }, "name": { "$ref": "#/$defs/nonBlank" }, "description": { "$ref": "#/$defs/nonBlank" } }
     },
     "source": {
-      "description": "Provenance source used by package records.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "name", "type"],
+      "type": "object", "additionalProperties": false, "required": ["id", "name", "type"],
       "properties": {
-        "id": { "description": "Stable domain UUID for the source.", "$ref": "#/$defs/uuid" },
-        "name": { "description": "Source name.", "$ref": "#/$defs/nonBlank" },
-        "type": {
-          "description": "Existing domain source type.",
-          "type": "string",
-          "enum": ["TEACHER", "COURSE", "BOOK", "SONG", "VIDEO", "WEBSITE", "OTHER"]
-        },
-        "reference": { "description": "Optional path, title, page, or URL; no default.", "$ref": "#/$defs/nonBlank" }
+        "id": { "$ref": "#/$defs/uuid" }, "name": { "$ref": "#/$defs/nonBlank" },
+        "type": { "type": "string", "enum": ["TEACHER", "COURSE", "BOOK", "SONG", "VIDEO", "WEBSITE", "OTHER"] },
+        "reference": { "$ref": "#/$defs/nonBlank" }
+      }
+    },
+    "vocabulary": {
+      "type": "object", "additionalProperties": false, "required": ["id", "tagalog", "english", "part_of_speech", "tags"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" }, "tagalog": { "$ref": "#/$defs/nonBlank" }, "english": { "$ref": "#/$defs/nonBlank" },
+        "root_word": { "$ref": "#/$defs/nonBlank" },
+        "part_of_speech": { "type": "string", "enum": ["NOUN", "PRONOUN", "VERB", "ADJECTIVE", "ADVERB", "PREPOSITION", "CONJUNCTION", "PARTICLE", "INTERJECTION", "PHRASE", "OTHER"] },
+        "difficulty": { "$ref": "#/$defs/difficulty" }, "frequency_rank": { "type": "integer", "minimum": 1 },
+        "source_id": { "$ref": "#/$defs/uuid" },
+        "tags": { "type": "array", "uniqueItems": true, "maxItems": 100000, "items": { "$ref": "#/$defs/nonBlank" } }
+      }
+    },
+    "sentence": {
+      "type": "object", "additionalProperties": false, "required": ["id", "text", "translation", "vocabulary_ids", "grammar_ids"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" }, "text": { "$ref": "#/$defs/nonBlank" }, "translation": { "$ref": "#/$defs/nonBlank" },
+        "difficulty": { "$ref": "#/$defs/difficulty" }, "source_id": { "$ref": "#/$defs/uuid" },
+        "vocabulary_ids": { "type": "array", "uniqueItems": true, "maxItems": 100000, "items": { "$ref": "#/$defs/uuid" } },
+        "grammar_ids": { "type": "array", "uniqueItems": true, "maxItems": 100000, "items": { "$ref": "#/$defs/uuid" } }
+      }
+    },
+    "grammar": {
+      "type": "object", "additionalProperties": false, "required": ["id", "name", "description", "formula"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" }, "name": { "$ref": "#/$defs/nonBlank" }, "description": { "$ref": "#/$defs/nonBlank" },
+        "formula": { "$ref": "#/$defs/nonBlank" }, "source_id": { "$ref": "#/$defs/uuid" }
       }
     }
   }

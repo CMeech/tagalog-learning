@@ -9,8 +9,8 @@ import java.util.UUID
 
 class LessonPackageValidatorTest {
     @Test
-    fun `Canonical package is valid, and all records are inserts against an empty database`() {
-        val result = validator().validate(Path.of("examples/lesson-package"))
+    fun `canonical package is valid and all records are inserts against an empty database`() {
+        val result = validator().validate(Path.of("examples/lesson-package/lesson.json"))
 
         assertTrue(result.isValid)
         assertEquals(11, result.inserts)
@@ -19,37 +19,37 @@ class LessonPackageValidatorTest {
     }
 
     @Test
-    fun `An identical stored record is unchanged, and changed UUID content is a conflict`() {
-        val loaded = LessonPackageLoader().load(Path.of("examples/lesson-package"))
+    fun `identical stored record is unchanged and changed UUID content is a conflict`() {
+        val loaded = LessonPackageLoader().load(Path.of("examples/lesson-package/lesson.json"))
         val lesson = loaded.lesson
         val unchanged = validator(
             StoredLessonPackageSnapshot(lessons = listOf(StoredLesson(lesson.id, lesson.name, lesson.description))),
-        ).validate(Path.of("examples/lesson-package"))
+        ).validate(Path.of("examples/lesson-package/lesson.json"))
         assertEquals(1, unchanged.unchanged)
 
         val conflict = validator(
             StoredLessonPackageSnapshot(lessons = listOf(StoredLesson(lesson.id, "Changed", lesson.description))),
-        ).validate(Path.of("examples/lesson-package"))
+        ).validate(Path.of("examples/lesson-package/lesson.json"))
         assertFalse(conflict.isValid)
         assertEquals(1, conflict.conflicts)
         assertTrue(conflict.errors.any { it.message.contains("different normalized content") })
     }
 
     @Test
-    fun `Unresolved cross-package relationships are reported with actionable locations`() {
-        val packagePath = Path.of("examples/lesson-package")
+    fun `unresolved cross-package relationships are reported with actionable locations`() {
+        val packagePath = Path.of("examples/lesson-package/lesson.json")
         val loaded = LessonPackageLoader().load(packagePath)
         val withoutVocabulary = loaded.copy(vocabulary = emptyList())
 
         val result = validator().validate(withoutVocabulary)
 
         assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.filename == "sentences.csv" && it.column == "vocabulary_ids" && it.row == 1L })
+        assertTrue(result.errors.any { it.path?.startsWith("$.sentences[0].vocabulary_ids[") == true })
     }
 
     @Test
-    fun `Duplicate content under another stored UUID and a reused package UUID are errors`() {
-        val candidate = LessonPackageLoader().load(Path.of("examples/lesson-package"))
+    fun `duplicate content under another stored uuid and reused package uuid are errors`() {
+        val candidate = LessonPackageLoader().load(Path.of("examples/lesson-package/lesson.json"))
         val duplicateLesson = StoredLesson(UUID.randomUUID(), candidate.lesson.name, candidate.lesson.description)
         val reused = candidate.copy(sources = listOf(candidate.sources.first().copy(id = candidate.lesson.id)))
 
@@ -61,8 +61,8 @@ class LessonPackageValidatorTest {
     }
 
     @Test
-    fun `Reusing global knowledge in another lesson or source is unchanged`() {
-        val candidate = LessonPackageLoader().load(Path.of("examples/lesson-package"))
+    fun `reusing global knowledge in another lesson or source is unchanged`() {
+        val candidate = LessonPackageLoader().load(Path.of("examples/lesson-package/lesson.json"))
         val vocabulary = candidate.vocabulary.first()
         val stored = StoredVocabulary(
             id = vocabulary.id,
@@ -86,5 +86,5 @@ class LessonPackageValidatorTest {
     }
 
     private fun validator(snapshot: StoredLessonPackageSnapshot = StoredLessonPackageSnapshot()) =
-        LessonPackageValidator(LessonPackageLoader()) { snapshot }
+        LessonPackageValidator(LessonPackageLoader(), KnowledgeRepositories.containing(snapshot))
 }

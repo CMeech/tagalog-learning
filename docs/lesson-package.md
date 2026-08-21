@@ -1,161 +1,108 @@
-# Lesson Package Authoring Contract (v1)
+# Lesson Package Authoring Contract (v2)
 
-This document is the complete authoring contract for a single lesson package. A package is a
-directory containing `lesson.json` and at least one of `vocabulary.csv`, `sentences.csv`, or
-`grammar.csv`. Empty entity files may be omitted. Other files are ignored.
+A lesson package is one UTF-8 JSON file named `lesson.json`. It is the repeatable generated input for
+one lesson; SQLite becomes the source of truth after import. The application does not accept package
+directories, CSV input, YAML, Markdown, JSON Lines, or multiple lessons in one file.
 
-## Files and limits
+## File contract
 
-- File names are exact and case-sensitive.
-- Every contract file is UTF-8 without a byte-order mark. Text must be Unicode NFC normalized.
-- `lesson.json` must conform to [`lesson-package.schema.json`](lesson-package.schema.json). JSON
-  property names are exact and case-sensitive; unspecified properties are invalid.
-- Each contract file may be at most 10 MiB (10,485,760 bytes), and the four contract files together
-  may be at most 25 MiB (26,214,400 bytes). Ignored files do not count toward this limit.
-- Each CSV file may contain at most 100,000 data rows. A decoded manifest string or CSV field may
-  contain at most 1,048,576 Unicode characters. These limits are checked in addition to the byte
-  limits so malformed input cannot cause unbounded parser allocations or collections.
-- A package contains one lesson only. There is no ordering dependency among its rows.
+- `lesson.json` must conform to [`lesson-package.schema.json`](lesson-package.schema.json).
+- The file is UTF-8 without a byte-order mark and at most 25 MiB (26,214,400 bytes).
+- JSON property names, enum values, and UUID spelling are exact and case-sensitive.
+- Duplicate JSON properties, unknown properties, and JSON `null` values are invalid.
+- Every decoded string is at most 1,048,576 Unicode characters.
+- Each top-level entity array and nested collection array contains at most 100,000 items.
+- Strings are Unicode NFC-normalized and trimmed at their outer edges after parsing. Internal
+  whitespace and escaped newlines are preserved.
+- Optional scalar values are omitted. Blank strings do not represent absence.
 
-## Manifest
+## Document shape
 
-`lesson.json` has these properties:
+The top-level properties `schema_version`, `lesson`, `sources`, `vocabulary`, `sentences`, and
+`grammar` are required. `schema_version` is `2`. Entity arrays may be empty, but at least one of
+`vocabulary`, `sentences`, or `grammar` must contain a record. `default_source_id` is optional.
 
-| Property | Required | Meaning |
-| --- | --- | --- |
-| `schema_version` | yes | Integer contract version; must be `1`. |
-| `lesson.id` | yes | Stable lesson UUID. |
-| `lesson.name` | yes | Non-blank lesson name. |
-| `lesson.description` | no | Non-blank description when supplied; no default. |
-| `sources` | yes | Source records; may be an empty array. Source IDs must be unique. |
-| `sources[].id` | yes | Stable source UUID. |
-| `sources[].name` | yes | Non-blank source name. |
-| `sources[].type` | yes | One of `TEACHER`, `COURSE`, `BOOK`, `SONG`, `VIDEO`, `WEBSITE`, `OTHER`. |
-| `sources[].reference` | no | Non-blank path, title, page, or URL when supplied; no default. |
-| `default_source_id` | no | UUID of a source in `sources`; no default. |
+See [`examples/lesson-package/lesson.json`](../examples/lesson-package/lesson.json) for the canonical
+complete example.
 
-The schema validates structure and scalar spelling. Cross-field requirements—unique source IDs and
-membership of `default_source_id` in `sources`—are also part of the contract and are checked by the
-application.
+### Lesson and sources
 
-## CSV files
+- `lesson` requires `id` and `name`; `description` is optional.
+- Each source requires `id`, `name`, and `type`; `reference` is optional.
+- Source types are `TEACHER`, `COURSE`, `BOOK`, `SONG`, `VIDEO`, `WEBSITE`, or `OTHER`.
+- A supplied `default_source_id` must identify a source in `sources`.
+- A missing entity `source_id` uses `default_source_id` when one is present.
 
-CSV uses RFC 4180-style records: comma delimiter, double-quote quoting, doubled double quotes inside
-quoted fields, and CRLF or LF record endings. A field containing a comma, double quote, or newline
-must be quoted. Embedded newlines are preserved. Headers must exactly match the templates in
-[`examples/import`](../examples/import), including order and case; no extra or missing columns are
-allowed.
+### Vocabulary
 
-All manifest and CSV string scalars are NFC-normalized and trimmed at their outer edges after
-parsing. Internal spaces and quoted newlines are preserved. A blank optional field means absent. A
-blank required field is invalid. Whitespace-only values are blank. There is no syntax for an
-explicit empty string. Enum values and UUIDs must already have their required case and spelling after
-trimming; the importer does not case-correct them.
+Each `vocabulary` item requires `id`, `tagalog`, `english`, `part_of_speech`, and `tags`.
+`root_word`, `difficulty`, `frequency_rank`, and `source_id` are optional.
 
-UUIDs are lowercase canonical strings such as `3fa85f64-5717-4562-b3fc-2c963f66afa6`. Every row ID
-must be unique across the package. `source_id`, `vocabulary_ids`, and `grammar_ids` may point to a
-record in this package or an existing SQLite record, subject to the relationship type.
-
-List fields use a literal pipe (`|`) delimiter. Each item is individually trimmed; blank items,
-duplicates, and literal pipes within values are invalid. List order is not meaningful. A blank list
-is empty. Relationship lists contain UUIDs. Tags contain names that must be NFC, already lowercase
-under Unicode lowercase conversion, and contain neither Unicode whitespace nor `|`. This keeps one
-CSV item equal to one Anki tag; `::` may be used for Anki hierarchy. Repeated tag names are invalid.
-
-### `vocabulary.csv`
-
-Header: `id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags`
-
-- Required: `id`, `tagalog`, `english`, `part_of_speech`.
-- `part_of_speech`: `NOUN`, `PRONOUN`, `VERB`, `ADJECTIVE`, `ADVERB`, `PREPOSITION`,
+- Part of speech is one of `NOUN`, `PRONOUN`, `VERB`, `ADJECTIVE`, `ADVERB`, `PREPOSITION`,
   `CONJUNCTION`, `PARTICLE`, `INTERJECTION`, `PHRASE`, or `OTHER`.
-- Blank `difficulty` defaults to `BEGINNER`; otherwise it is `BEGINNER`, `INTERMEDIATE`, or
-  `ADVANCED`.
-- `frequency_rank`, when present, is a positive base-10 integer with no sign.
-- `root_word`, `source_id`, and `tags` are optional. A blank `source_id` uses the manifest default;
-  it remains absent if the manifest has no default.
+- Missing `difficulty` defaults to `BEGINNER`; other values are `INTERMEDIATE` and `ADVANCED`.
+- `frequency_rank` is a positive integer.
+- `tags` is a required duplicate-free JSON array. Tags are lowercase tokens without whitespace;
+  `::` may express Anki hierarchy.
 
-### `sentences.csv`
+### Sentences
 
-Header: `id,text,translation,difficulty,source_id,vocabulary_ids,grammar_ids`
+Each `sentences` item requires `id`, `text`, `translation`, `vocabulary_ids`, and `grammar_ids`.
+`difficulty` and `source_id` are optional. Missing difficulty defaults to `BEGINNER`.
 
-- Required: `id`, `text`, `translation`.
-- Blank `difficulty` defaults to `BEGINNER`; its other values are as above.
-- `source_id`, `vocabulary_ids`, and `grammar_ids` are optional. Source defaulting is as above.
+`vocabulary_ids` and `grammar_ids` are required duplicate-free JSON arrays. References may resolve to
+records defined in this file or knowledge already stored in SQLite.
 
-### `grammar.csv`
+### Grammar
 
-Header: `id,name,description,formula,source_id`
+Each `grammar` item requires `id`, `name`, `description`, and `formula`. `source_id` is optional.
+Examples are derived from sentence relationships rather than duplicated on grammar concepts.
 
-- Required: `id`, `name`, `description`, `formula`.
-- `source_id` is optional and uses the same defaulting rule.
-- Examples are represented only by sentence `grammar_ids` relationships.
+## Identity, comparison, and corrections
 
-Every imported vocabulary, sentence, and grammar row gains an association with the manifest lesson.
-The knowledge record itself remains global and may be associated with many lessons. A row's resolved
-`source_id` is provenance for that entity's occurrence in this lesson rather than exclusive ownership
-of the entity. A non-blank `source_id` must resolve to a source in this manifest or one already stored
-in SQLite. Sources listed in the manifest are global records subject to the same
-new/unchanged/conflict/update rules as other global records; the manifest also associates them with
-the lesson.
+Every lesson, source, vocabulary item, sentence, and grammar concept has a lowercase canonical UUID.
+Generate a UUID once and preserve it across corrections, imports, exports, and Anki updates.
 
-## Normalized content and duplicate comparison
+- A UUID absent from SQLite is an insert.
+- An existing UUID with identical normalized global content is unchanged.
+- An existing UUID with different global content is a conflict unless `--update-existing` is used.
+- Equal normalized content under different UUIDs is a validation error.
+- Tags and relationship arrays are unordered sets for comparison and persistence.
+- Lesson membership and per-lesson source provenance are associations, not global entity content.
+- Reusing global knowledge in another lesson adds an association without duplicating the entity.
+- Omitting a record never deletes or detaches stored knowledge. Packages are incremental.
+- Explicit updates replace complete package-owned fields, tags, sentence relationships, and the
+  included entity's association metadata for this lesson without altering other lessons.
 
-Normalization occurs before validation or comparison: decode UTF-8, require NFC input, trim string
-scalars and list items, apply blank/default rules, validate scalar types, then treat tag and
-relationship lists as unordered sets. Normalization does not collapse internal whitespace or change
-letter case.
+The successful import checksum is SHA-256 over the exact accepted input bytes. Formatting an
+otherwise equivalent document differently changes its package checksum but not its entity
+insert/unchanged/conflict assessments.
 
-An entity's content fingerprint excludes its own UUID and includes its complete package-owned
-representation:
+## Diagnostics
 
-- lesson: normalized `name` and `description`;
-- source: normalized `name`, `type`, and `reference`;
-- vocabulary: normalized scalar columns and the sorted set of tag names;
-- sentence: normalized scalar columns and the sorted vocabulary and grammar UUID sets;
-- grammar: normalized scalar columns.
-
-Lesson UUID and resolved source UUID are deliberately excluded from these global entity
-fingerprints. They form a lesson/entity association with per-lesson provenance. Reusing an existing
-entity UUID in a later lesson therefore adds knowledge-graph context without duplicating or changing
-the entity. Changing association provenance while correcting the same lesson is still an explicit
-package update, but it never removes associations belonging to other lessons.
-
-Two records with the same UUID compare these fingerprints to decide unchanged versus conflict. Two
-records of the same entity type with different UUIDs but equal fingerprints are exact-content
-duplicates and validation reports both UUIDs. Fingerprints are compared both within the package and
-against SQLite. Different entity types are never duplicates of one another.
-
-Tags are the deliberate exception to package UUID authoring: `tags` contains names, not tag records.
-The importer resolves or creates the database `Tag` by its normalized lowercase name and assigns its
-internal UUID. Authors preserve the tag spelling, not a tag UUID. This does not introduce an external
-key for any package record.
-
-## Stable identity and corrections
-
-Generate a UUID once for each lesson, source, vocabulary item, sentence, and grammar concept. UUIDv4
-is recommended. Keep the ID beside the content in every working draft. When correcting spelling,
-translation, metadata, tags, or relationships, edit the existing row and preserve its UUID. Assign a
-new UUID only when introducing a genuinely new domain record; never derive identity from mutable
-text or row position. Reuse the known UUID when referring to an earlier package's record.
-
-A different UUID with otherwise identical normalized content is invalid. Omitting an old row does
-not delete it. Imports are incremental, and updates must be explicitly enabled when an existing UUID
-has changed content.
-
-## Copyable generation prompt
+Validation identifies values by JSON path, for example:
 
 ```text
-Create one Tagalog lesson package from the supplied source material. Output exactly one lesson.json
-and at least one non-empty CSV named vocabulary.csv, sentences.csv, or grammar.csv. Follow
-docs/lesson-package.md and validate lesson.json against docs/lesson-package.schema.json. Copy CSV
-headers exactly from examples/import/*.csv. Use UTF-8, Unicode NFC, lowercase canonical UUIDs, and
-schema_version 1. Preserve any UUIDs supplied with the source or prior package; generate UUIDv4 only
-for genuinely new records. Do not change IDs while correcting content. Include source provenance,
-use the manifest default source where appropriate, quote CSV fields correctly, and use pipe-separated
-unique values only for tags and relationship IDs. Do not invent extra properties, columns, files, or
-editorial workflow state. Tag names must be lowercase NFC tokens without whitespace or pipes. Return
-the files plus a short validation summary listing counts and every cross-package relationship.
+lesson.json $.vocabulary[0].id: must be a lowercase canonical UUID
+lesson.json $.sentences[1].vocabulary_ids[0]: Vocabulary UUID does not exist
 ```
 
-See [`examples/lesson-package`](../examples/lesson-package) for a complete package.
+Array indexes in paths are zero-based. Supplied values are escaped and length-limited. Structural
+parsing must succeed before independent semantic errors can be collected. Validation is read-only.
+
+## Generation prompt
+
+```text
+Create one Tagalog lesson as exactly one JSON document named lesson.json. Follow
+docs/lesson-package.md and schema version 2 in docs/lesson-package.schema.json. Do not wrap the JSON
+in Markdown fences and do not create CSV, YAML, Markdown, or additional input files. Use UTF-8,
+Unicode NFC, lowercase canonical UUIDs, exact enum spelling, JSON arrays for tags and relationships,
+and omit absent optional properties rather than using null. Preserve supplied UUIDs while correcting
+content and generate UUIDv4 only for genuinely new records. Include source provenance, reuse known
+UUIDs for cross-lesson relationships, and produce no unknown properties.
+```
+
+## Output boundary
+
+JSON is only the authoring and import format. The application still exports separate vocabulary,
+sentence, and grammar TSV files because those are the delivery contract for Anki note types.
