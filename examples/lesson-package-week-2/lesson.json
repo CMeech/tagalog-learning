@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "lesson": {
+    "id": "10000000-0000-4000-8000-000000000002",
+    "name": "Magalang na pag-uusap",
+    "description": "Muling paggamit ng kaalaman sa ibang linggo at sanggunian."
+  },
+  "sources": [
+    {
+      "id": "20000000-0000-4000-8000-000000000002",
+      "name": "Usapang Tagalog, Aralin 2",
+      "type": "BOOK",
+      "reference": "Kabanata 2, pahina 8–10"
+    }
+  ],
+  "default_source_id": "20000000-0000-4000-8000-000000000002"
+}

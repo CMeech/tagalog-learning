@@ -346,6 +346,82 @@ class TagalogCommandTest {
         }
     }
 
+    @Test
+    fun `Publish composes the workflow and retains a successful import when a later export fails`() {
+        withTemporaryDatabase {
+            execute("init")
+            val packagePath = Path.of("examples/lesson-package").toAbsolutePath().toString()
+            val published = temporaryDirectory.resolve("published")
+            val success = execute("lesson", "publish", packagePath, "--output", published.toString(), "--format", "json")
+            assertEquals(0, success.exitCode)
+            assertTrue(success.text.contains("\"stage\":\"complete\""))
+            assertTrue(success.text.contains("\"imported\":true"))
+            assertTrue(success.text.contains("\"exported\":true"))
+            assertTrue(Files.exists(published.resolve("export.json")))
+
+            val existing = temporaryDirectory.resolve("already-here")
+            Files.createDirectory(existing)
+
+            val result = execute("lesson", "publish", packagePath, "--output", existing.toString(), "--format", "json")
+
+            assertEquals(2, result.exitCode)
+            assertTrue(result.error.contains("\"stage\":\"export\""))
+            assertTrue(result.error.contains("\"imported\":true"))
+            assertTrue(result.error.contains("\"exported\":false"))
+            assertTrue(result.error.contains("tagalog anki export --lesson 10000000-0000-4000-8000-000000000001 --output"))
+            assertEquals(1, rowCount("import_run"), "The committed import must not be rolled back with the filesystem failure")
+        }
+    }
+
+    @Test
+    fun `Weekly workflow supports correction cross-week reuse provenance and repeated exports`() {
+        withTemporaryDatabase {
+            execute("init")
+            val firstPackage = Path.of("examples/lesson-package").toAbsolutePath()
+            val secondPackage = Path.of("examples/lesson-package-week-2").toAbsolutePath()
+            assertEquals(0, execute("lesson", "validate", firstPackage.toString(), "--format", "json").exitCode)
+            assertEquals(0, execute("lesson", "import", firstPackage.toString()).exitCode)
+
+            val corrected = temporaryDirectory.resolve("corrected-package")
+            copyDirectory(firstPackage, corrected)
+            val vocabulary = corrected.resolve("vocabulary.csv")
+            Files.writeString(vocabulary, Files.readString(vocabulary).replace("politeness marker", "respect marker"))
+            assertEquals(2, execute("lesson", "import", corrected.toString()).exitCode)
+            assertEquals(0, execute("lesson", "import", corrected.toString(), "--update-existing").exitCode)
+
+            assertEquals(0, execute("lesson", "validate", secondPackage.toString()).exitCode)
+            assertEquals(0, execute("lesson", "import", secondPackage.toString()).exitCode)
+            val sharedVocabulary = execute("vocabulary", "show", "30000000-0000-4000-8000-000000000004", "--format", "json")
+            val sharedSentence = execute("sentence", "show", "50000000-0000-4000-8000-000000000001", "--format", "json")
+            val sharedGrammar = execute("grammar", "show", "40000000-0000-4000-8000-000000000002", "--format", "json")
+            listOf(sharedVocabulary, sharedSentence, sharedGrammar).forEach {
+                assertEquals(0, it.exitCode)
+                assertTrue(it.text.contains("Usapang Tagalog, Aralin 1"))
+                assertTrue(it.text.contains("Usapang Tagalog, Aralin 2"))
+            }
+
+            val firstExport = temporaryDirectory.resolve("week-one")
+            val firstRepeat = temporaryDirectory.resolve("week-one-repeat")
+            val secondExport = temporaryDirectory.resolve("week-two")
+            assertEquals(0, execute("anki", "export", "--lesson", "10000000-0000-4000-8000-000000000001", "--output", firstExport.toString()).exitCode)
+            assertEquals(0, execute("anki", "export", "--lesson", "10000000-0000-4000-8000-000000000001", "--output", firstRepeat.toString()).exitCode)
+            assertEquals(0, execute("anki", "export", "--lesson", "10000000-0000-4000-8000-000000000002", "--output", secondExport.toString()).exitCode)
+            assertEquals(Files.readString(firstExport.resolve("vocabulary.tsv")), Files.readString(firstRepeat.resolve("vocabulary.tsv")))
+            assertTrue(Files.readString(firstExport.resolve("vocabulary.tsv")).contains("Pagbati at pagpapakilala\tUsapang Tagalog, Aralin 1"))
+            assertTrue(Files.readString(secondExport.resolve("vocabulary.tsv")).contains("Magalang na pag-uusap\tUsapang Tagalog, Aralin 2"))
+            val grammar = Files.readString(secondExport.resolve("grammar.tsv"))
+            assertTrue(grammar.contains("Magandang umaga po."))
+            assertTrue(grammar.contains("Salamat po."))
+        }
+    }
+
+    private fun copyDirectory(source: Path, destination: Path) {
+        Files.walk(source).use { paths -> paths.forEach { path ->
+            val target = destination.resolve(source.relativize(path).toString())
+            if (Files.isDirectory(path)) Files.createDirectories(target) else Files.copy(path, target)
+        } }
+    }
+
     private fun withTemporaryDatabase(action: () -> Unit) {
         val property = "tagalog.db.path"
         val previous = System.getProperty(property)

@@ -11,6 +11,9 @@ import ca.cashmclean.tagalog.infrastructure.database.LessonPackageSnapshotReader
 import ca.cashmclean.tagalog.infrastructure.database.JdbcKnowledgeGraphQueries
 import ca.cashmclean.tagalog.application.LessonDetail
 import ca.cashmclean.tagalog.application.LessonEntityView
+import ca.cashmclean.tagalog.application.export.LessonExportException
+import ca.cashmclean.tagalog.application.export.LessonExportService
+import ca.cashmclean.tagalog.infrastructure.database.JdbcLessonExportQueries
 import com.fasterxml.jackson.databind.ObjectMapper
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
@@ -21,7 +24,7 @@ import java.util.UUID
 @Command(
     name = "lesson",
     description = ["Manage lesson packages."],
-    subcommands = [ValidateLessonCommand::class, ImportLessonCommand::class, ListLessonsCommand::class, ShowLessonCommand::class],
+    subcommands = [ValidateLessonCommand::class, ImportLessonCommand::class, PublishLessonCommand::class, ListLessonsCommand::class, ShowLessonCommand::class],
 )
 class LessonCommand
 
@@ -128,10 +131,13 @@ class ValidateLessonCommand : java.util.concurrent.Callable<Int> {
     @Option(names = ["--format"], defaultValue = "text")
     lateinit var format: OutputFormat
 
+    @Option(names = ["--update-existing"], description = ["Treat intentional changes to existing UUIDs as updates."])
+    var updateExisting: Boolean = false
+
     override fun call(): Int {
         val config = DatabaseConfig.fromEnvironment()
         val validator = LessonPackageValidator(LessonPackageLoader()) { LessonPackageSnapshotReader(config).read() }
-        val result = validator.validate(packageDirectory)
+        val result = validator.validate(packageDirectory, allowUpdates = updateExisting)
         when (format) {
             OutputFormat.text -> printText(result)
             OutputFormat.json -> println(ObjectMapper().writeValueAsString(result.toJson()))
@@ -246,6 +252,79 @@ class ImportLessonCommand : java.util.concurrent.Callable<Int> {
             2
         }
     }
+}
+
+@Command(name = "publish", description = ["Validate, import, and export one lesson package."])
+class PublishLessonCommand : java.util.concurrent.Callable<Int> {
+    @Parameters(index = "0", paramLabel = "<package>")
+    lateinit var packageDirectory: Path
+
+    @Option(names = ["--output"], required = true)
+    lateinit var output: Path
+
+    @Option(names = ["--update-existing"])
+    var updateExisting: Boolean = false
+
+    @Option(names = ["--format"], defaultValue = "text")
+    lateinit var format: OutputFormat
+
+    override fun call(): Int {
+        val config = DatabaseConfig.fromEnvironment()
+        val validation = LessonPackageValidator(LessonPackageLoader()) { LessonPackageSnapshotReader(config).read() }
+            .validate(packageDirectory, allowUpdates = updateExisting)
+        if (!validation.isValid) {
+            if (format == OutputFormat.json) System.err.println(commandJson.writeValueAsString(linkedMapOf(
+                "success" to false, "stage" to "validation", "imported" to false, "exported" to false,
+                "lesson_id" to validation.lessonId?.toString(), "errors" to validation.errors.map { it.toJson() },
+            ))) else {
+                System.err.println("Lesson package is invalid (${validation.errors.size} errors); nothing was imported.")
+                validation.errors.forEach { System.err.println(it.asText()) }
+            }
+            return 2
+        }
+
+        val imported = try {
+            LessonPackageImporter(config).importPackage(packageDirectory, updateExisting)
+        } catch (exception: LessonPackageImportException) {
+            if (format == OutputFormat.json) System.err.println(commandJson.writeValueAsString(linkedMapOf(
+                "success" to false, "stage" to "import", "imported" to false, "exported" to false,
+                "lesson_id" to validation.lessonId?.toString(), "message" to exception.message,
+                "errors" to exception.validation?.errors?.map { it.toJson() }.orEmpty(),
+            ))) else System.err.println(exception.message)
+            return 2
+        }
+
+        return try {
+            val exported = LessonExportService(JdbcLessonExportQueries(config)).export(imported.lessonId, output)
+            if (format == OutputFormat.json) println(commandJson.writeValueAsString(linkedMapOf(
+                "success" to true, "stage" to "complete", "imported" to true, "exported" to true,
+                "lesson_id" to imported.lessonId.toString(), "import_run_id" to imported.importRunId.toString(),
+                "exact_rerun" to imported.exactRerun, "output" to exported.output.toString(),
+                "files" to exported.files.map { linkedMapOf("name" to it.name, "sha256" to it.sha256, "row_count" to it.rowCount) },
+            ))) else {
+                println("Published lesson ${imported.lessonId} to ${exported.output}")
+                println("Import run: ${imported.importRunId}${if (imported.exactRerun) " (exact rerun)" else ""}")
+            }
+            0
+        } catch (exception: LessonExportException) {
+            val retry = retryCommand(imported.lessonId, output)
+            if (format == OutputFormat.json) System.err.println(commandJson.writeValueAsString(linkedMapOf(
+                "success" to false, "stage" to "export", "imported" to true, "exported" to false,
+                "lesson_id" to imported.lessonId.toString(), "import_run_id" to imported.importRunId.toString(),
+                "error" to exception.kind.name.lowercase(), "message" to exception.message, "retry_command" to retry,
+            ))) else {
+                System.err.println("Import succeeded, but export failed: ${exception.message}")
+                System.err.println("The import was retained. Retry with:")
+                System.err.println(retry)
+            }
+            2
+        }
+    }
+
+    private fun retryCommand(lessonId: UUID, destination: Path): String =
+        "tagalog anki export --lesson $lessonId --output ${shellQuote(destination.toString())}${if (format == OutputFormat.json) " --format json" else ""}"
+
+    private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
 }
 
 private fun PackageDiagnostic.asText(): String = buildString {

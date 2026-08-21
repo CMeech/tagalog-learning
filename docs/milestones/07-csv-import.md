@@ -163,21 +163,21 @@ of any export format.
 
 ### M7.6 — Automate and document the weekly operation
 
-- [ ] Add stable JSON result schemas and exit codes for validation, import, inspection, and export.
-- [ ] Add `lesson publish` only as composition of the tested validate, import, and export services.
-- [ ] If publish imports successfully but export fails, retain the valid import and report an exact
+- [x] Add stable JSON result schemas and exit codes for validation, import, inspection, and export.
+- [x] Add `lesson publish` only as composition of the tested validate, import, and export services.
+- [x] If publish imports successfully but export fails, retain the valid import and report an exact
       retry command rather than attempting rollback across SQLite and the filesystem.
-- [ ] Document first-time Anki note-type setup and the exact recurring import settings for all three
+- [x] Document first-time Anki note-type setup and the exact recurring import settings for all three
       files.
-- [ ] Document the manual deletion procedure for the rare case where an explicitly deleted database
+- [x] Document the manual deletion procedure for the rare case where an explicitly deleted database
       record already exists in Anki.
-- [ ] Document how to correct a package, preserve UUIDs, validate, and re-import with
+- [x] Document how to correct a package, preserve UUIDs, validate, and re-import with
       `--update-existing`.
-- [ ] Run the canonical sample from package validation through import and repeated Anki export using
+- [x] Run the canonical sample from package validation through import and repeated Anki export using
       only documented Docker commands.
-- [ ] Add one end-to-end test covering generation fixtures, validation, import, inspection, correction,
+- [x] Add one end-to-end test covering generation fixtures, validation, import, inspection, correction,
       explicit update, cross-week relationship resolution, export, and repeat export.
-- [ ] In the end-to-end workflow, reuse the same vocabulary, sentence, and grammar UUIDs in two
+- [x] In the end-to-end workflow, reuse the same vocabulary, sentence, and grammar UUIDs in two
       lessons with different source provenance. Verify inspection reports both associations and each
       lesson export selects the correct rows and renders that lesson's `Lesson` and `Source` values;
       also verify an exported grammar concept includes globally related example sentences from both
@@ -185,14 +185,14 @@ of any export format.
 
 ## Definition of done
 
-- [ ] A malformed package reports complete actionable errors and writes nothing.
-- [ ] A valid package imports all content and relationships atomically.
-- [ ] Exact reruns are harmless and corrections require an explicit update flag.
-- [ ] Package omission never deletes data; deletion is an explicit, reference-safe command.
-- [ ] Later packages can relate sentences to content imported in earlier weeks.
-- [ ] Any imported lesson can be exported again without database changes or status manipulation.
-- [ ] The Anki files match documented note types and update existing notes by UUID.
-- [ ] The sample weekly workflow passes under Docker and is usable through text or JSON output.
+- [x] A malformed package reports complete actionable errors and writes nothing.
+- [x] A valid package imports all content and relationships atomically.
+- [x] Exact reruns are harmless and corrections require an explicit update flag.
+- [x] Package omission never deletes data; deletion is an explicit, reference-safe command.
+- [x] Later packages can relate sentences to content imported in earlier weeks.
+- [x] Any imported lesson can be exported again without database changes or status manipulation.
+- [x] The Anki files match documented note types and update existing notes by UUID.
+- [x] The sample weekly workflow passes under Docker and is usable through text or JSON output.
 
 ## Version 1 decisions
 
