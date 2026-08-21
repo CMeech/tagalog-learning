@@ -10,6 +10,7 @@ import picocli.CommandLine
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Path
+import java.nio.file.Files
 import java.sql.DriverManager
 
 @ResourceLock("SYSTEM_OUT")
@@ -210,6 +211,141 @@ class TagalogCommandTest {
         }
     }
 
+    @Test
+    fun `entity show reports complete content relationships and lesson provenance`() {
+        withTemporaryDatabase {
+            execute("init")
+            execute("lesson", "import", Path.of("examples/lesson-package").toAbsolutePath().toString())
+
+            val vocabulary = execute("vocabulary", "show", "30000000-0000-4000-8000-000000000004", "--format", "json")
+            val sentence = execute("sentence", "show", "50000000-0000-4000-8000-000000000003", "--format", "json")
+            val grammar = execute("grammar", "show", "40000000-0000-4000-8000-000000000002", "--format", "json")
+
+            assertEquals(0, vocabulary.exitCode)
+            assertTrue(vocabulary.text.contains("\"tagalog\":\"po\""))
+            assertTrue(vocabulary.text.contains("\"reference\":\"Kabanata 1, pahina 3–5\""))
+            assertTrue(vocabulary.text.contains("\"used_by_sentences\":[{"))
+            assertEquals(0, sentence.exitCode)
+            assertTrue(sentence.text.contains("\"vocabulary\":[{"))
+            assertTrue(sentence.text.contains("\"grammar\":[{"))
+            assertEquals(0, grammar.exitCode)
+            assertTrue(grammar.text.contains("\"example_sentences\":[{"))
+
+            val unknown = execute("grammar", "show", "00000000-0000-4000-8000-000000000000", "--format", "json")
+            assertEquals(2, unknown.exitCode)
+            assertEquals("{\"found\":false,\"type\":\"grammar\",\"id\":\"00000000-0000-4000-8000-000000000000\",\"message\":\"Grammar not found: 00000000-0000-4000-8000-000000000000\"}", unknown.error.trim())
+        }
+    }
+
+    @Test
+    fun `explicit deletion refuses references then removes sentence associations and prints Anki notice`() {
+        withTemporaryDatabase {
+            execute("init")
+            execute("lesson", "import", Path.of("examples/lesson-package").toAbsolutePath().toString())
+            val vocabularyId = "30000000-0000-4000-8000-000000000001"
+            val sentenceId = "50000000-0000-4000-8000-000000000001"
+
+            val refused = execute("vocabulary", "delete", vocabularyId)
+            assertEquals(3, refused.exitCode)
+            assertTrue(refused.error.contains(sentenceId))
+            assertEquals(4, rowCount("vocabulary"))
+
+            DriverManager.getConnection(databaseUrl()).use { connection ->
+                connection.createStatement().use { it.executeUpdate(
+                    "CREATE TRIGGER fail_sentence_delete AFTER DELETE ON sentence BEGIN SELECT RAISE(ABORT, 'forced rollback'); END",
+                ) }
+            }
+            val rolledBack = execute("sentence", "delete", sentenceId)
+            assertEquals(1, rolledBack.exitCode)
+            assertEquals(1, countWhere("sentence", "id", sentenceId))
+            assertTrue(countWhere("sentence_vocabulary", "sentence_id", sentenceId) > 0)
+            DriverManager.getConnection(databaseUrl()).use { connection ->
+                connection.createStatement().use { it.executeUpdate("DROP TRIGGER fail_sentence_delete") }
+            }
+
+            val deletedSentence = execute("sentence", "delete", sentenceId)
+            assertEquals(0, deletedSentence.exitCode)
+            assertTrue(deletedSentence.text.contains("TSV import cannot remove notes"))
+            assertEquals(0, countWhere("lesson_sentence", "sentence_id", sentenceId))
+            assertEquals(0, countWhere("sentence_vocabulary", "sentence_id", sentenceId))
+            assertEquals(0, countWhere("sentence_grammar", "sentence_id", sentenceId))
+
+            val deletedVocabulary = execute("vocabulary", "delete", vocabularyId, "--format", "json")
+            assertEquals(0, deletedVocabulary.exitCode)
+            assertTrue(deletedVocabulary.text.contains("\"anki_manual_removal_required\":true"))
+            assertEquals(0, countWhere("lesson_vocabulary", "vocabulary_id", vocabularyId))
+            assertEquals(0, countWhere("vocabulary", "id", vocabularyId))
+
+            val grammarId = "40000000-0000-4000-8000-000000000002"
+            val refusedGrammar = execute("grammar", "delete", grammarId)
+            assertEquals(3, refusedGrammar.exitCode)
+            assertTrue(refusedGrammar.error.contains("50000000-0000-4000-8000-000000000003"))
+            execute("sentence", "delete", "50000000-0000-4000-8000-000000000003")
+            val deletedGrammar = execute("grammar", "delete", grammarId)
+            assertEquals(0, deletedGrammar.exitCode)
+            assertEquals(0, countWhere("lesson_grammar", "grammar_concept_id", grammarId))
+
+            val unknown = execute("sentence", "delete", "00000000-0000-4000-8000-000000000000", "--format", "json")
+            assertEquals(2, unknown.exitCode)
+            assertTrue(unknown.error.contains("\"deleted\":false"))
+        }
+    }
+
+    @Test
+    fun `Anki export matches fixtures is repeatable and protects destinations`() {
+        withTemporaryDatabase {
+            execute("init")
+            execute("lesson", "import", Path.of("examples/lesson-package").toAbsolutePath().toString())
+            val lessonId = "10000000-0000-4000-8000-000000000001"
+            val first = temporaryDirectory.resolve("export-one")
+            val second = temporaryDirectory.resolve("export-two")
+
+            assertEquals(0, execute("anki", "export", "--lesson", lessonId, "--output", first.toString()).exitCode)
+            listOf("vocabulary.tsv", "sentences.tsv", "grammar.tsv").forEach { name ->
+                assertEquals(Files.readString(Path.of("examples/lesson-package/expected-anki/$name")), Files.readString(first.resolve(name)))
+            }
+            val manifest = Files.readString(first.resolve("export.json"))
+            assertTrue(manifest.contains("\"schema_version\" : 1"))
+            assertTrue(manifest.contains("\"lesson_id\" : \"$lessonId\""))
+            assertTrue(manifest.contains("\"sha256\""))
+            assertTrue(manifest.contains("\"row_count\" : 4"))
+
+            assertEquals(0, execute("anki", "export", "--lesson", lessonId, "--output", second.toString()).exitCode)
+            assertEquals(Files.readString(first.resolve("vocabulary.tsv")), Files.readString(second.resolve("vocabulary.tsv")))
+            val exists = execute("anki", "export", "--lesson", lessonId, "--output", first.toString())
+            assertEquals(2, exists.exitCode)
+            val unknownOutput = temporaryDirectory.resolve("unknown")
+            val unknown = execute("anki", "export", "--lesson", "00000000-0000-4000-8000-000000000000", "--output", unknownOutput.toString())
+            assertEquals(2, unknown.exitCode)
+            assertEquals(false, Files.exists(unknownOutput))
+        }
+    }
+
+    @Test
+    fun `Anki export omits empty TSVs uses requested lesson provenance and global grammar examples`() {
+        withTemporaryDatabase {
+            execute("init")
+            execute("lesson", "import", Path.of("examples/lesson-package").toAbsolutePath().toString())
+            val lessonId = "90000000-0000-4000-8000-000000000001"
+            val sourceId = "90000000-0000-4000-8000-000000000002"
+            DriverManager.getConnection(databaseUrl()).use { connection ->
+                connection.createStatement().use { statement ->
+                    statement.executeUpdate("INSERT INTO lesson (id, name) VALUES ('$lessonId', 'Ikalawang aralin')")
+                    statement.executeUpdate("INSERT INTO source (id, name, type, reference) VALUES ('$sourceId', 'Bagong aklat', 'BOOK', 'p. 9')")
+                    statement.executeUpdate("INSERT INTO lesson_source VALUES ('$lessonId', '$sourceId')")
+                    statement.executeUpdate("INSERT INTO lesson_grammar VALUES ('$lessonId', '40000000-0000-4000-8000-000000000002', '$sourceId')")
+                }
+            }
+            val output = temporaryDirectory.resolve("second-lesson")
+            assertEquals(0, execute("anki", "export", "--lesson", lessonId, "--output", output.toString()).exitCode)
+            assertEquals(false, Files.exists(output.resolve("vocabulary.tsv")))
+            assertEquals(false, Files.exists(output.resolve("sentences.tsv")))
+            val grammar = Files.readString(output.resolve("grammar.tsv"))
+            assertTrue(grammar.contains("Ikalawang aralin\tBagong aklat — p. 9"))
+            assertTrue(grammar.contains("Magandang umaga po.; Ikaw po si José?"))
+        }
+    }
+
     private fun withTemporaryDatabase(action: () -> Unit) {
         val property = "tagalog.db.path"
         val previous = System.getProperty(property)
@@ -254,6 +390,14 @@ class TagalogCommandTest {
         "lesson", "source", "vocabulary", "sentence", "grammar_concept", "tag",
         "vocabulary_tag", "sentence_vocabulary", "sentence_grammar",
     ).sumOf(::rowCount)
+
+    private fun countWhere(table: String, column: String, id: String): Int =
+        DriverManager.getConnection(databaseUrl()).use { connection ->
+            connection.prepareStatement("SELECT count(*) FROM $table WHERE $column = ?").use { statement ->
+                statement.setString(1, id)
+                statement.executeQuery().use { results -> results.next(); results.getInt(1) }
+            }
+        }
 
     private fun databaseUrl() = "jdbc:sqlite:${temporaryDirectory.resolve("tagalog.db")}?foreign_keys=on"
 

@@ -15,6 +15,7 @@ data class LessonAssociationView(
     val lessonName: String,
     val sourceId: UUID?,
     val sourceName: String?,
+    val sourceReference: String?,
 )
 
 data class KnowledgeReference(val id: UUID, val displayText: String)
@@ -57,6 +58,26 @@ data class LessonDetail(
     val sentenceGrammar: Map<UUID, List<KnowledgeReference>>,
 )
 
+data class VocabularyDetail(
+    val vocabulary: Vocabulary,
+    val tags: List<KnowledgeReference>,
+    val lessons: List<LessonAssociationView>,
+    val usedBySentences: List<KnowledgeReference>,
+)
+
+data class SentenceDetail(
+    val sentence: Sentence,
+    val lessons: List<LessonAssociationView>,
+    val vocabulary: List<KnowledgeReference>,
+    val grammar: List<KnowledgeReference>,
+)
+
+data class GrammarDetail(
+    val grammar: GrammarConcept,
+    val lessons: List<LessonAssociationView>,
+    val exampleSentences: List<KnowledgeReference>,
+)
+
 /** Read boundary for navigating stored knowledge independently of importing and Anki export. */
 interface KnowledgeGraphQueries {
     fun lessons(): List<LessonSummary>
@@ -70,4 +91,7 @@ interface KnowledgeGraphQueries {
     fun sentencesUsingGrammar(grammarId: UUID): List<KnowledgeReference>
     fun vocabularyUsedBySentence(sentenceId: UUID): List<KnowledgeReference>
     fun grammarUsedBySentence(sentenceId: UUID): List<KnowledgeReference>
+    fun vocabularyDetail(id: UUID): VocabularyDetail?
+    fun sentenceDetail(id: UUID): SentenceDetail?
+    fun grammarDetail(id: UUID): GrammarDetail?
 }

@@ -8,6 +8,9 @@ import ca.cashmclean.tagalog.application.LessonEntityView
 import ca.cashmclean.tagalog.application.LessonSummary
 import ca.cashmclean.tagalog.application.ImportRunView
 import ca.cashmclean.tagalog.application.LessonAssociationView
+import ca.cashmclean.tagalog.application.VocabularyDetail
+import ca.cashmclean.tagalog.application.SentenceDetail
+import ca.cashmclean.tagalog.application.GrammarDetail
 import ca.cashmclean.tagalog.domain.Difficulty
 import ca.cashmclean.tagalog.domain.GrammarConcept
 import ca.cashmclean.tagalog.domain.Lesson
@@ -95,7 +98,7 @@ class JdbcKnowledgeGraphQueries(private val config: DatabaseConfig) : KnowledgeG
             KnowledgeEntityType.GRAMMAR -> "lesson_grammar" to "grammar_concept_id"
         }
         return query(
-            """SELECT l.id, l.name, a.source_id, s.name
+            """SELECT l.id, l.name, a.source_id, s.name, s.reference
                FROM $table a
                JOIN lesson l ON l.id = a.lesson_id
                LEFT JOIN source s ON s.id = a.source_id
@@ -105,10 +108,27 @@ class JdbcKnowledgeGraphQueries(private val config: DatabaseConfig) : KnowledgeG
         ) { result ->
             LessonAssociationView(
                 UUID.fromString(result.getString(1)), result.getString(2),
-                result.getString(3)?.let(UUID::fromString), result.getString(4),
+                result.getString(3)?.let(UUID::fromString), result.getString(4), result.getString(5),
             )
         }
     }
+
+    override fun vocabularyDetail(id: UUID): VocabularyDetail? = vocabulary(id)?.let {
+        VocabularyDetail(it, tagsForVocabulary(id), lessonsFor(KnowledgeEntityType.VOCABULARY, id), sentencesUsingVocabulary(id))
+    }
+
+    override fun sentenceDetail(id: UUID): SentenceDetail? = sentence(id)?.let {
+        SentenceDetail(it, lessonsFor(KnowledgeEntityType.SENTENCE, id), vocabularyUsedBySentence(id), grammarUsedBySentence(id))
+    }
+
+    override fun grammarDetail(id: UUID): GrammarDetail? = grammar(id)?.let {
+        GrammarDetail(it, lessonsFor(KnowledgeEntityType.GRAMMAR, id), sentencesUsingGrammar(id))
+    }
+
+    private fun tagsForVocabulary(id: UUID) = references(
+        """SELECT t.id, t.name FROM vocabulary_tag r JOIN tag t ON t.id = r.tag_id
+           WHERE r.vocabulary_id = ? ORDER BY t.id""".trimIndent(), id,
+    )
 
     override fun sentencesUsingVocabulary(vocabularyId: UUID) = references(
         """SELECT s.id, s.text FROM sentence_vocabulary r

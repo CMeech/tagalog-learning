@@ -19,6 +19,7 @@ import java.util.concurrent.Callable
         SentenceCommand::class,
         GrammarCommand::class,
         LessonCommand::class,
+        AnkiCommand::class,
     ],
 )
 class TagalogCommand : Callable<Int> {

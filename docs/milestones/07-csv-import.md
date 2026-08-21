@@ -117,21 +117,21 @@ of any export format.
       history.
 - [x] Include record UUIDs, lesson-scoped source provenance, and readable semantic relationship
       summaries so imported data can be diagnosed.
-- [ ] Add entity-level `show <id>` commands where necessary to inspect complete stored content,
+- [x] Add entity-level `show <id>` commands where necessary to inspect complete stored content,
       including every lesson association and that association's source provenance.
-- [ ] Add explicit `vocabulary delete <id>`, `sentence delete <id>`, and `grammar delete <id>` commands;
+- [x] Add explicit `vocabulary delete <id>`, `sentence delete <id>`, and `grammar delete <id>` commands;
       never infer deletion from package omission.
-- [ ] Treat lesson membership and its source provenance as dependent association metadata: deleting
+- [x] Treat lesson membership and its source provenance as dependent association metadata: deleting
       an entity removes those associations in the same transaction and they do not by themselves
       prevent explicit deletion.
-- [ ] Refuse deletion when another global knowledge record references the target through a semantic
+- [x] Refuse deletion when another global knowledge record references the target through a semantic
       relationship and report those records so they can be corrected first. In particular, refuse to
       delete vocabulary or grammar referenced by a sentence; deleting a sentence removes its outgoing
       vocabulary and grammar relationships atomically.
-- [ ] On deletion, print the UUID and remind the user that a matching Anki note must be deleted
+- [x] On deletion, print the UUID and remind the user that a matching Anki note must be deleted
       manually because TSV import cannot remove notes.
-- [ ] Add integration tests for unknown IDs, empty collections, ordering, and JSON stability.
-- [ ] Add deletion tests for unreferenced records, referenced-record refusal, transaction rollback,
+- [x] Add integration tests for unknown IDs, empty collections, ordering, and JSON stability.
+- [x] Add deletion tests for unreferenced records, referenced-record refusal, transaction rollback,
       and the manual-Anki-removal notice.
 
 ### M7.5 — Implement repeatable Anki export
@@ -139,26 +139,26 @@ of any export format.
 - [x] Add application export projections for vocabulary, sentences, and grammar without placing Anki
       concepts in domain entities.
 - [x] Implement the three Milestone 6 TSV renderers and verify them against expected fixtures.
-- [ ] Add `tagalog anki export --lesson <lesson-id> --output <new-directory>`.
-- [ ] Keep delivery file-based: do not add AnkiConnect, require Anki to be running, or modify an Anki
+- [x] Add `tagalog anki export --lesson <lesson-id> --output <new-directory>`.
+- [x] Keep delivery file-based: do not add AnkiConnect, require Anki to be running, or modify an Anki
       collection directly.
-- [ ] Resolve relationships into readable export fields while retaining UUID as the first field.
-- [ ] Select vocabulary, sentence, and grammar rows through their association with the requested
+- [x] Resolve relationships into readable export fields while retaining UUID as the first field.
+- [x] Select vocabulary, sentence, and grammar rows through their association with the requested
       lesson. Render each row's `Lesson` and `Source` fields from that same lesson association rather
       than from legacy entity ownership columns or an association belonging to another lesson.
-- [ ] For an exported grammar concept, derive `Examples` from every globally stored sentence related
+- [x] For an exported grammar concept, derive `Examples` from every globally stored sentence related
       to that concept, including sentences associated with other lessons. Lesson membership limits
       which grammar rows are exported, not the global inverse relationship used to render examples.
-- [ ] Render every output into a temporary sibling directory; rename it to the requested destination
+- [x] Render every output into a temporary sibling directory; rename it to the requested destination
       only after every file and manifest succeeds.
-- [ ] Fail without changing the destination when it already exists, the lesson is unknown, or
+- [x] Fail without changing the destination when it already exists, the lesson is unknown, or
       rendering fails.
-- [ ] Write `vocabulary.tsv`, `sentences.tsv`, `grammar.tsv`, and `export.json`; omit an entity TSV only
+- [x] Write `vocabulary.tsv`, `sentences.tsv`, `grammar.tsv`, and `export.json`; omit an entity TSV only
       when that entity type is absent from the lesson.
-- [ ] Include schema version, lesson ID, export timestamp, record UUIDs, file checksums, and row counts
+- [x] Include schema version, lesson ID, export timestamp, record UUIDs, file checksums, and row counts
       in `export.json` so output can be inspected and reproduced.
-- [ ] Do not mutate content or mark entities exported; the same lesson can be exported repeatedly.
-- [ ] Add escaping and integration tests for tabs, quotes, CRLF, embedded newlines, HTML-sensitive
+- [x] Do not mutate content or mark entities exported; the same lesson can be exported repeatedly.
+- [x] Add escaping and integration tests for tabs, quotes, CRLF, embedded newlines, HTML-sensitive
       text, Tagalog characters, empty entity types, existing destinations, and repeat exports.
 
 ### M7.6 — Automate and document the weekly operation
