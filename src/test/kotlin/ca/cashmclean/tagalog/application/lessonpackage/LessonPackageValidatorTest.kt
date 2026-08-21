@@ -9,7 +9,7 @@ import java.util.UUID
 
 class LessonPackageValidatorTest {
     @Test
-    fun `canonical package is valid and all records are inserts against an empty database`() {
+    fun `Canonical package is valid, and all records are inserts against an empty database`() {
         val result = validator().validate(Path.of("examples/lesson-package"))
 
         assertTrue(result.isValid)
@@ -19,7 +19,7 @@ class LessonPackageValidatorTest {
     }
 
     @Test
-    fun `identical stored record is unchanged and changed UUID content is a conflict`() {
+    fun `An identical stored record is unchanged, and changed UUID content is a conflict`() {
         val loaded = LessonPackageLoader().load(Path.of("examples/lesson-package"))
         val lesson = loaded.lesson
         val unchanged = validator(
@@ -36,7 +36,7 @@ class LessonPackageValidatorTest {
     }
 
     @Test
-    fun `unresolved cross-package relationships are reported with actionable locations`() {
+    fun `Unresolved cross-package relationships are reported with actionable locations`() {
         val packagePath = Path.of("examples/lesson-package")
         val loaded = LessonPackageLoader().load(packagePath)
         val withoutVocabulary = loaded.copy(vocabulary = emptyList())
@@ -48,7 +48,7 @@ class LessonPackageValidatorTest {
     }
 
     @Test
-    fun `duplicate content under another stored uuid and reused package uuid are errors`() {
+    fun `Duplicate content under another stored UUID and a reused package UUID are errors`() {
         val candidate = LessonPackageLoader().load(Path.of("examples/lesson-package"))
         val duplicateLesson = StoredLesson(UUID.randomUUID(), candidate.lesson.name, candidate.lesson.description)
         val reused = candidate.copy(sources = listOf(candidate.sources.first().copy(id = candidate.lesson.id)))
@@ -61,7 +61,7 @@ class LessonPackageValidatorTest {
     }
 
     @Test
-    fun `reusing global knowledge in another lesson or source is unchanged`() {
+    fun `Reusing global knowledge in another lesson or source is unchanged`() {
         val candidate = LessonPackageLoader().load(Path.of("examples/lesson-package"))
         val vocabulary = candidate.vocabulary.first()
         val stored = StoredVocabulary(

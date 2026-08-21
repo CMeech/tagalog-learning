@@ -19,7 +19,7 @@ class TagalogCommandTest {
     lateinit var temporaryDirectory: Path
 
     @Test
-    fun `root command displays help`() {
+    fun `Root command displays help`() {
         val output = captureOutput { CommandLine(TagalogCommand()).execute() }
 
         assertEquals(0, output.exitCode)
@@ -28,7 +28,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `version command prints application version`() {
+    fun `Version command prints the application version`() {
         val output = captureOutput { CommandLine(TagalogCommand()).execute("version") }
 
         assertEquals(0, output.exitCode)
@@ -36,7 +36,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `all milestone one commands execute successfully`() {
+    fun `All Milestone 1 commands execute successfully`() {
         withTemporaryDatabase {
             listOf("init", "validate", "migrate").forEach { command ->
                 val output = captureOutput { CommandLine(TagalogCommand()).execute(command) }
@@ -46,7 +46,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `creation workflows persist vocabulary sentences and grammar`() {
+    fun `Creation workflows persist vocabulary, sentences, and grammar`() {
         withTemporaryDatabase {
             assertEquals(0, execute("init").exitCode)
             assertEquals(
@@ -79,7 +79,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `invalid workflow input returns an error without persisting data`() {
+    fun `Invalid workflow input returns an error without persisting data`() {
         withTemporaryDatabase {
             execute("init")
 
@@ -94,7 +94,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `validation reports malformed stored entities`() {
+    fun `Validation reports malformed stored entities`() {
         withTemporaryDatabase {
             execute("init")
             DriverManager.getConnection(databaseUrl()).use { connection ->
@@ -111,7 +111,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `lesson validate supports text and json without changing SQLite`() {
+    fun `Lesson validate supports text and JSON without changing SQLite`() {
         withTemporaryDatabase {
             assertEquals(0, execute("init").exitCode)
             val packagePath = Path.of("examples/lesson-package").toAbsolutePath().toString()
@@ -131,7 +131,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `lesson import reports counts and exact rerun in text and json`() {
+    fun `Lesson import reports counts and an exact rerun in text and JSON`() {
         withTemporaryDatabase {
             assertEquals(0, execute("init").exitCode)
             val packagePath = Path.of("examples/lesson-package").toAbsolutePath().toString()
@@ -150,7 +150,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `lesson list is deterministic and supports empty text and stable json`() {
+    fun `Lesson list is deterministic and supports empty text and stable JSON`() {
         withTemporaryDatabase {
             execute("init")
             assertEquals("No lessons found.", execute("lesson", "list").text.trim())
@@ -171,7 +171,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `lesson show includes provenance relationships counts and import history`() {
+    fun `Lesson show includes provenance, relationships, counts, and import history`() {
         withTemporaryDatabase {
             execute("init")
             val packagePath = Path.of("examples/lesson-package").toAbsolutePath().toString()
@@ -196,7 +196,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `lesson show reports an unknown id in text and stable json`() {
+    fun `Lesson show reports an unknown ID in text and stable JSON`() {
         withTemporaryDatabase {
             execute("init")
             val id = "00000000-0000-4000-8000-000000000000"
@@ -212,7 +212,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `entity show reports complete content relationships and lesson provenance`() {
+    fun `Entity show reports complete content, relationships, and lesson provenance`() {
         withTemporaryDatabase {
             execute("init")
             execute("lesson", "import", Path.of("examples/lesson-package").toAbsolutePath().toString())
@@ -238,7 +238,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `explicit deletion refuses references then removes sentence associations and prints Anki notice`() {
+    fun `Explicit deletion refuses references, then removes sentence associations and prints an Anki notice`() {
         withTemporaryDatabase {
             execute("init")
             execute("lesson", "import", Path.of("examples/lesson-package").toAbsolutePath().toString())
@@ -292,7 +292,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `Anki export matches fixtures is repeatable and protects destinations`() {
+    fun `Anki export matches fixtures, is repeatable, and protects destinations`() {
         withTemporaryDatabase {
             execute("init")
             execute("lesson", "import", Path.of("examples/lesson-package").toAbsolutePath().toString())
@@ -322,7 +322,7 @@ class TagalogCommandTest {
     }
 
     @Test
-    fun `Anki export omits empty TSVs uses requested lesson provenance and global grammar examples`() {
+    fun `Anki export omits empty TSVs, uses requested lesson provenance, and includes global grammar examples`() {
         withTemporaryDatabase {
             execute("init")
             execute("lesson", "import", Path.of("examples/lesson-package").toAbsolutePath().toString())

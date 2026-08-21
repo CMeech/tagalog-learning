@@ -21,7 +21,7 @@ class AnkiExportersTest {
     )
 
     @Test
-    fun `vocabulary renderer matches canonical fixture`() {
+    fun `Vocabulary renderer matches the canonical fixture`() {
         val items = listOf(
             vocabulary("0004", "po", "politeness marker", PartOfSpeech.PARTICLE, listOf("paggalang")),
             vocabulary("0002", "ako", "I", PartOfSpeech.PRONOUN, listOf("panghalip")),
@@ -33,7 +33,7 @@ class AnkiExportersTest {
     }
 
     @Test
-    fun `sentence renderer matches canonical fixture and orders relationships by UUID`() {
+    fun `Sentence renderer matches the canonical fixture and orders relationships by UUID`() {
         val vocab = mapOf("0001" to "magandang umaga", "0002" to "ako", "0003" to "ikaw", "0004" to "po")
         val grammar = mapOf("0001" to "Pangungusap na di-karaniwan", "0002" to "Magalang na po")
         fun refs(prefix: String, values: Map<String, String>, vararg ids: String) =
@@ -51,7 +51,7 @@ class AnkiExportersTest {
     }
 
     @Test
-    fun `grammar renderer matches canonical fixture`() {
+    fun `Grammar renderer matches the canonical fixture`() {
         val items = listOf(
             GrammarExportProjection(id("40000000", "0002"), "Magalang na po", "Adds po to show respect to the listener.",
                 "Pahayag + po", listOf(
@@ -70,7 +70,7 @@ class AnkiExportersTest {
     }
 
     @Test
-    fun `renderer quotes tabs quotes and all newline forms while leaving HTML as plain text`() {
+    fun `Renderer quotes tabs, quotes, and all newline forms while leaving HTML as plain text`() {
         val item = vocabulary("0001", "<b>sabi</b>\t\"niya\"", "line 1\r\nline 2", PartOfSpeech.PHRASE, emptyList())
         val rendered = AnkiVocabularyExporter().let { it.render(it.export(listOf(item))) }
 

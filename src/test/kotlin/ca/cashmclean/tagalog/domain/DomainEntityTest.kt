@@ -9,7 +9,7 @@ class DomainEntityTest {
     private val id = UUID.randomUUID()
 
     @Test
-    fun `valid entities retain their values`() {
+    fun `Valid entities retain their values`() {
         val vocabulary = Vocabulary(
             id = id,
             tagalog = "kumain",
@@ -26,7 +26,7 @@ class DomainEntityTest {
     }
 
     @Test
-    fun `required text fields reject blank values`() {
+    fun `Required text fields reject blank values`() {
         val invalidObjects = listOf<() -> Any>(
             { validVocabulary(tagalog = " ") },
             { validVocabulary(englishMeaning = "\t") },
@@ -46,7 +46,7 @@ class DomainEntityTest {
     }
 
     @Test
-    fun `optional text rejects blank values when present`() {
+    fun `Optional text rejects blank values when present`() {
         assertThrows(IllegalArgumentException::class.java) { validVocabulary(rootWord = " ") }
         assertThrows(IllegalArgumentException::class.java) { Lesson(id, "Lesson 1", " ") }
         assertThrows(IllegalArgumentException::class.java) {
@@ -55,13 +55,13 @@ class DomainEntityTest {
     }
 
     @Test
-    fun `frequency rank must be positive when present`() {
+    fun `Frequency rank must be positive when present`() {
         assertThrows(IllegalArgumentException::class.java) { validVocabulary(frequencyRank = 0) }
         assertThrows(IllegalArgumentException::class.java) { validVocabulary(frequencyRank = -1) }
     }
 
     @Test
-    fun `optional vocabulary metadata may be absent`() {
+    fun `Optional vocabulary metadata may be absent`() {
         val vocabulary = validVocabulary()
 
         assertEquals(null, vocabulary.rootWord)

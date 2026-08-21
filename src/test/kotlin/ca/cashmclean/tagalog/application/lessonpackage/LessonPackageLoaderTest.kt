@@ -16,7 +16,7 @@ class LessonPackageLoaderTest {
     private val loader = LessonPackageLoader()
 
     @Test
-    fun `loads canonical package into typed candidates`() {
+    fun `Loader reads the canonical package into typed candidates`() {
         val candidate = loader.load(Path.of("examples/lesson-package"))
 
         assertEquals(1, candidate.schemaVersion)
@@ -32,7 +32,7 @@ class LessonPackageLoaderTest {
     }
 
     @Test
-    fun `normalizes and trims strings once while preserving internal content`() {
+    fun `Loader normalizes and trims strings once while preserving internal content`() {
         writeMinimumManifest(name = "  Cafe\u0301 lesson  ")
         Files.writeString(
             temporaryDirectory.resolve("sentences.csv"),
@@ -49,7 +49,7 @@ class LessonPackageLoaderTest {
     }
 
     @Test
-    fun `ignores unknown files but requires a recognized csv`() {
+    fun `Loader ignores unknown files but requires a recognized CSV`() {
         writeMinimumManifest()
         Files.writeString(temporaryDirectory.resolve("notes.md"), "working notes")
 
@@ -59,7 +59,7 @@ class LessonPackageLoaderTest {
     }
 
     @Test
-    fun `validates schema version before other manifest fields`() {
+    fun `Loader validates the schema version before other manifest fields`() {
         Files.writeString(temporaryDirectory.resolve("lesson.json"), """{"schema_version":2}""")
         writeHeaderOnlyVocabulary()
 
@@ -69,7 +69,7 @@ class LessonPackageLoaderTest {
     }
 
     @Test
-    fun `rejects byte order marks explicitly`() {
+    fun `Loader rejects byte order marks explicitly`() {
         writeMinimumManifest()
         val csv = "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n"
         Files.write(temporaryDirectory.resolve("vocabulary.csv"), byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + csv.toByteArray())
@@ -80,7 +80,7 @@ class LessonPackageLoaderTest {
     }
 
     @Test
-    fun `parses quoted commas quotes crlf lists enums and integers`() {
+    fun `Loader parses quoted commas, quotes, CRLF, lists, enums, and integers`() {
         writeMinimumManifest()
         Files.writeString(
             temporaryDirectory.resolve("vocabulary.csv"),
@@ -97,7 +97,7 @@ class LessonPackageLoaderTest {
     }
 
     @Test
-    fun `rejects duplicate and blank list items`() {
+    fun `Loader rejects duplicate and blank list items`() {
         writeMinimumManifest()
         Files.writeString(
             temporaryDirectory.resolve("vocabulary.csv"),
@@ -115,7 +115,7 @@ class LessonPackageLoaderTest {
     }
 
     @Test
-    fun `rejects malformed uuid enum integer and utf8 input`() {
+    fun `Loader rejects malformed UUID, enum, integer, and UTF-8 input`() {
         writeMinimumManifest()
         fun vocabulary(id: String, part: String = "OTHER", rank: String = "") =
             "id,tagalog,english,root_word,part_of_speech,difficulty,frequency_rank,source_id,tags\n" +
@@ -132,7 +132,7 @@ class LessonPackageLoaderTest {
     }
 
     @Test
-    fun `validation reports every kind of header problem before parsing rows`() {
+    fun `Validation reports every kind of header problem before parsing rows`() {
         writeMinimumManifest()
         Files.writeString(
             temporaryDirectory.resolve("grammar.csv"),
@@ -151,7 +151,7 @@ class LessonPackageLoaderTest {
     }
 
     @Test
-    fun `validation collects independent malformed rows`() {
+    fun `Validation collects independent malformed rows`() {
         writeMinimumManifest()
         Files.writeString(
             temporaryDirectory.resolve("vocabulary.csv"),

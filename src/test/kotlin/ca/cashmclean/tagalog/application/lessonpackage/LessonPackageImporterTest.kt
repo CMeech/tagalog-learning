@@ -20,7 +20,7 @@ class LessonPackageImporterTest {
     lateinit var temporaryDirectory: Path
 
     @Test
-    fun `imports complete package atomically and exact rerun returns original run`() {
+    fun `Importer stores a complete package atomically, and an exact rerun returns the original run`() {
         migrate()
         val importer = importer()
 
@@ -41,7 +41,7 @@ class LessonPackageImporterTest {
     }
 
     @Test
-    fun `conflict rolls back and explicit update replaces package-owned content`() {
+    fun `A conflict rolls back, and an explicit update replaces package-owned content`() {
         migrate()
         val importer = importer()
         importer.importPackage(samplePackage())
@@ -73,7 +73,7 @@ class LessonPackageImporterTest {
     }
 
     @Test
-    fun `global entities can join another lesson with different provenance`() {
+    fun `Global entities can join another lesson with different provenance`() {
         migrate()
         val importer = importer()
         importer.importPackage(samplePackage())
@@ -134,7 +134,7 @@ class LessonPackageImporterTest {
     }
 
     @Test
-    fun `later sentence resolves relationships to previously imported knowledge`() {
+    fun `A later sentence resolves relationships to previously imported knowledge`() {
         migrate()
         val importer = importer()
         importer.importPackage(samplePackage())
@@ -158,7 +158,7 @@ class LessonPackageImporterTest {
     }
 
     @Test
-    fun `association provenance conflict rolls back earlier writes in the import transaction`() {
+    fun `An association provenance conflict rolls back earlier writes in the import transaction`() {
         migrate()
         val importer = importer()
         importer.importPackage(samplePackage())
@@ -207,7 +207,7 @@ class LessonPackageImporterTest {
     }
 
     @Test
-    fun `knowledge graph queries navigate semantic relationships in both directions`() {
+    fun `Knowledge graph queries navigate semantic relationships in both directions`() {
         migrate()
         importer().importPackage(samplePackage())
         val queries = JdbcKnowledgeGraphQueries(config())

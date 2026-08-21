@@ -12,7 +12,7 @@ class LessonExportServiceTest {
     @TempDir lateinit var temporaryDirectory: Path
 
     @Test
-    fun `read or rendering preparation failure leaves destination unchanged`() {
+    fun `Read or rendering preparation failure leaves the destination unchanged`() {
         val destination = temporaryDirectory.resolve("export")
         val service = LessonExportService(LessonExportQueries { error("simulated read failure") })
 

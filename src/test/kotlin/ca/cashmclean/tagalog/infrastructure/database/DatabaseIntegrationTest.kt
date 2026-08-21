@@ -33,7 +33,7 @@ class DatabaseIntegrationTest {
     )
 
     @Test
-    fun `migration creates every required table and is idempotent`() {
+    fun `Migration creates every required table and is idempotent`() {
         val manager = manager()
 
         assertEquals(2, manager.migrate())
@@ -48,7 +48,7 @@ class DatabaseIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(strings = ["", "   "])
-    fun `database rejects blank vocabulary text`(invalidText: String) {
+    fun `Database rejects blank vocabulary text`(invalidText: String) {
         manager().migrate()
 
         assertThrows(SQLException::class.java) {
@@ -63,7 +63,7 @@ class DatabaseIntegrationTest {
     }
 
     @Test
-    fun `database rejects invalid enum and frequency values`() {
+    fun `Database rejects invalid enum and frequency values`() {
         manager().migrate()
 
         assertThrows(SQLException::class.java) {
@@ -75,7 +75,7 @@ class DatabaseIntegrationTest {
     }
 
     @Test
-    fun `foreign keys and relationship uniqueness are enforced`() {
+    fun `Foreign keys and relationship uniqueness are enforced`() {
         manager().migrate()
         val vocabularyId = insertVocabulary(partOfSpeech = "NOUN", frequencyRank = 1)
         val tagId = UUID.randomUUID().toString()
@@ -103,7 +103,7 @@ class DatabaseIntegrationTest {
     }
 
     @Test
-    fun `deleting content cascades to relationship rows`() {
+    fun `Deleting content cascades to relationship rows`() {
         manager().migrate()
         val vocabularyId = insertVocabulary(partOfSpeech = "NOUN", frequencyRank = null)
         val tagId = UUID.randomUUID().toString()
