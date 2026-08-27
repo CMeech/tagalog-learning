@@ -4,26 +4,20 @@ SQLite is the source of truth. Keep each reviewed `lesson.json` file so later co
 preserve its UUIDs. The commands below use only Docker/OrbStack and the Compose-managed database
 volume.
 
-## Canonical Docker workflow
+## Normal weekly workflow
 
-Create a host directory for exports, build and initialize the application, then validate, import,
-inspect, and export the sample. Each export target must not already exist.
+Build and initialize the application once. Running `init` again is safe and reports that the database
+is up to date.
 
 ```shell
 mkdir -p run
 docker compose build
 docker compose run --rm app init
-docker compose run --rm -v "$PWD/examples:/examples:ro" app lesson validate /examples/lesson-package/lesson.json
-docker compose run --rm -v "$PWD/examples:/examples:ro" app lesson import /examples/lesson-package/lesson.json
-docker compose run --rm app lesson show 10000000-0000-4000-8000-000000000001
-docker compose run --rm -v "$PWD/run:/exports" app anki export --lesson 10000000-0000-4000-8000-000000000001 --output /exports/week-1
-docker compose run --rm -v "$PWD/run:/exports" app anki export --lesson 10000000-0000-4000-8000-000000000001 --output /exports/week-1-repeat
 ```
 
-Add `--format json` to validation, import, inspection, export, or publish for automation. The stable
-objects and exit codes are defined in [the CLI contract](cli-contract.md).
-
-For the normal weekly path, the equivalent convenience command is:
+For each reviewed lesson, publish its single `lesson.json` file. This command validates, imports, and
+exports the lesson. The output directory must not already exist; use a new name for every export.
+The sample command is:
 
 ```shell
 docker compose run --rm -v "$PWD/examples:/examples:ro" -v "$PWD/run:/exports" app lesson publish /examples/lesson-package/lesson.json --output /exports/week-1
@@ -31,7 +25,30 @@ docker compose run --rm -v "$PWD/examples:/examples:ro" -v "$PWD/run:/exports" a
 
 `publish` composes the same validation, import, and export services. If export fails after import,
 the SQLite commit is retained and the command prints an exact `tagalog anki export` retry command.
-Use that command with a new destination; do not import the package again merely to retry export.
+That command is expressed from inside the application container. When running through Docker, wrap
+it with the export mount as shown below and choose a new destination; do not import the package again
+merely to retry export.
+
+```shell
+docker compose run --rm -v "$PWD/run:/exports" app anki export --lesson <lesson-id> --output /exports/<new-directory>
+```
+
+Add `--format json` to validation, import, inspection, export, or publish for automation. The stable
+objects and exit codes are defined in [the CLI contract](cli-contract.md).
+
+## Diagnostic workflow
+
+Use the individual commands when reviewing or troubleshooting a lesson. They are not additional
+steps required before `publish`, because import and publish perform validation internally. The
+following example uses two distinct export destinations so every command can be run in sequence:
+
+```shell
+docker compose run --rm -v "$PWD/examples:/examples:ro" app lesson validate /examples/lesson-package/lesson.json
+docker compose run --rm -v "$PWD/examples:/examples:ro" app lesson import /examples/lesson-package/lesson.json
+docker compose run --rm app lesson show 10000000-0000-4000-8000-000000000001
+docker compose run --rm -v "$PWD/run:/exports" app anki export --lesson 10000000-0000-4000-8000-000000000001 --output /exports/week-1-manual
+docker compose run --rm -v "$PWD/run:/exports" app anki export --lesson 10000000-0000-4000-8000-000000000001 --output /exports/week-1-repeat
+```
 
 ## Correcting an imported package
 
