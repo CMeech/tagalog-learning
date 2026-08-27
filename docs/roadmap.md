@@ -15,6 +15,9 @@ a custom Anki integration.
 
 ## Later work
 
+- **Vocabulary category coverage:** query vocabulary coverage by stored tags such as lifestyle,
+  colors, and food. Define the meaning of sufficient coverage and the command interface when this
+  work is planned.
 - **In-application AI enrichment:** generate example sentences, explanations, related vocabulary,
   and grammar suggestions inside the application. Agent-generated lesson packages are the current
   solution.

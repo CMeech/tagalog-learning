@@ -1,7 +1,8 @@
 # Weekly lesson operation
 
-SQLite is the source of truth. Keep each reviewed lesson package so later corrections can preserve
-its UUIDs. The commands below use only Docker/OrbStack and the Compose-managed database volume.
+SQLite is the source of truth. Keep each reviewed `lesson.json` file so later corrections can
+preserve its UUIDs. The commands below use only Docker/OrbStack and the Compose-managed database
+volume.
 
 ## Canonical Docker workflow
 
@@ -12,8 +13,8 @@ inspect, and export the sample. Each export target must not already exist.
 mkdir -p run
 docker compose build
 docker compose run --rm app init
-docker compose run --rm -v "$PWD/examples:/examples:ro" app lesson validate /examples/lesson-package
-docker compose run --rm -v "$PWD/examples:/examples:ro" app lesson import /examples/lesson-package
+docker compose run --rm -v "$PWD/examples:/examples:ro" app lesson validate /examples/lesson-package/lesson.json
+docker compose run --rm -v "$PWD/examples:/examples:ro" app lesson import /examples/lesson-package/lesson.json
 docker compose run --rm app lesson show 10000000-0000-4000-8000-000000000001
 docker compose run --rm -v "$PWD/run:/exports" app anki export --lesson 10000000-0000-4000-8000-000000000001 --output /exports/week-1
 docker compose run --rm -v "$PWD/run:/exports" app anki export --lesson 10000000-0000-4000-8000-000000000001 --output /exports/week-1-repeat
@@ -25,7 +26,7 @@ objects and exit codes are defined in [the CLI contract](cli-contract.md).
 For the normal weekly path, the equivalent convenience command is:
 
 ```shell
-docker compose run --rm -v "$PWD/examples:/examples:ro" -v "$PWD/run:/exports" app lesson publish /examples/lesson-package --output /exports/week-1
+docker compose run --rm -v "$PWD/examples:/examples:ro" -v "$PWD/run:/exports" app lesson publish /examples/lesson-package/lesson.json --output /exports/week-1
 ```
 
 `publish` composes the same validation, import, and export services. If export fails after import,
@@ -40,8 +41,8 @@ reported as a conflict by default, which protects against accidental replacement
 the conflict, validate and import explicitly with updates enabled:
 
 ```shell
-docker compose run --rm -v "$PWD/examples:/examples:ro" app lesson validate /examples/lesson-package --update-existing
-docker compose run --rm -v "$PWD/examples:/examples:ro" app lesson import /examples/lesson-package --update-existing
+docker compose run --rm -v "$PWD/examples:/examples:ro" app lesson validate /examples/lesson-package/lesson.json --update-existing
+docker compose run --rm -v "$PWD/examples:/examples:ro" app lesson import /examples/lesson-package/lesson.json --update-existing
 ```
 
 Validation accepts `--update-existing` so intentional corrections can be checked before import.
