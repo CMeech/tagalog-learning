@@ -42,5 +42,6 @@ docker compose run --rm app validate
 
 For implementation work, start with the small [task context](docs/task-context.md), then read only the relevant [milestone](docs/milestones/). Stable decisions, conventions, and deferred work are linked from the task context.
 
-The complete recurring workflow is in [Weekly lesson operation](docs/weekly-operation.md), with
-automation result shapes and exit codes in the [CLI contract](docs/cli-contract.md).
+Complete [Initial setup](docs/initial-setup.md) once for the application and Anki note types. The
+recurring workflow is in [Weekly lesson operation](docs/weekly-operation.md), with automation result
+shapes and exit codes in the [CLI contract](docs/cli-contract.md).

@@ -6,14 +6,19 @@ volume.
 
 ## Normal weekly workflow
 
-Build and initialize the application once. Running `init` again is safe and reports that the database
-is up to date.
+Build the application during initial setup and after application changes. Run `init` after every
+build or update before publishing; the SQLite volume persists across container replacement, but a
+persistent database does not receive new schema migrations until `init` runs. Repeating `init` is
+safe and reports that the database is up to date.
 
 ```shell
 mkdir -p run
 docker compose build
 docker compose run --rm app init
 ```
+
+If publishing reports a missing database table, stop and run `docker compose run --rm app init`, then
+retry the same package. A failure before the import commit does not create a partial lesson.
 
 For each reviewed lesson, publish its single `lesson.json` file. This command validates, imports, and
 exports the lesson. The output directory must not already exist; use a new name for every export.
@@ -22,6 +27,17 @@ The sample command is:
 ```shell
 docker compose run --rm -v "$PWD/examples:/examples:ro" -v "$PWD/run:/exports" app lesson publish /examples/lesson-package/lesson.json --output /exports/week-1
 ```
+
+Before publishing generated grammar, review each concept for learning quality as well as schema
+validity:
+
+- Its `name` asks for one identifiable piece of knowledge, and its `description` answers it directly.
+- Its `formula` accurately describes the cited form rather than extrapolating from one example.
+- Each related sentence actually demonstrates the concept.
+- Independent facts are separate concepts, and uncertain or incidental observations are omitted.
+
+It is valid to leave `grammar` or a sentence's `grammar_ids` empty. Retaining only vocabulary and
+sentence material is preferable when a grammar explanation is not yet clear enough to review.
 
 `publish` composes the same validation, import, and export services. If export fails after import,
 the SQLite commit is retained and the command prints an exact `tagalog anki export` retry command.
@@ -68,17 +84,22 @@ when deletion is truly intended.
 
 ## Anki setup and recurring imports
 
-Before the first import, create the three note types and copy the supplied card templates exactly as
-described in [the Anki contract](anki-contract.md#note-types-and-field-order). For every weekly TSV:
+Before the first import, complete [Initial setup](initial-setup.md), which walks through creating all
+three note types, fields, card templates, and shared styling. The exported TSVs are note files rather
+than packaged Anki decks, so import them in Anki Desktop and then sync them to AnkiWeb. For every
+weekly TSV after that:
 
-1. Use Anki desktop **File → Import** and select the note type named by the file header.
+1. Use Anki Desktop **File → Import** and select the note type named by the file header. Stop rather
+   than import if Anki shows `Basic`; select or create the required custom note type first.
 2. Select a deck; this affects new notes, not existing-note updates.
 3. Keep **Allow HTML in fields** off and confirm columns map in the documented order. Vocabulary
    column 7 maps to Anki's built-in **Tags** metadata.
 4. Match duplicates on the first field (`ID`), scope matching to note type, and enable updating
    existing notes.
+5. Inspect the import summary, then sync Anki Desktop to AnkiWeb.
 
-Import `vocabulary.tsv`, `sentences.tsv`, and `grammar.tsv` when present. UUID matching updates notes
+Import `vocabulary.tsv`, `sentences.tsv`, and `grammar.tsv` when present; their order does not matter
+because readable relationships are already rendered into each file. UUID matching updates notes
 without resetting scheduling. After an explicit database deletion, search Anki Browse for the UUID,
 verify the note type and `ID`, and delete the note—not merely one card—manually. TSV imports cannot
 delete Anki notes.

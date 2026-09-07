@@ -58,6 +58,40 @@ records defined in this file or knowledge already stored in SQLite.
 Each `grammar` item requires `id`, `name`, `description`, and `formula`. `source_id` is optional.
 Examples are derived from sentence relationships rather than duplicated on grammar concepts.
 
+Grammar concepts are durable learning records, not general notes about a sentence. Write each concept
+as one narrow recall target:
+
+- Make `name` a specific learner-facing question or prompt that makes the expected recall clear.
+- Make `description` answer that prompt directly. Put the short answer first and limit supporting
+  explanation to what is needed to understand the rule in the linked sentences.
+- Use `formula` only for an accurate productive pattern, transformation, or morphological breakdown.
+  Do not invent a general formula from one observed form. When no symbolic pattern would clarify the
+  concept, use a short concrete construction instead.
+- Split independently testable facts into separate concepts. For example, the meanings of `pa` and
+  the question marker `ba` should not share one concept merely because they occur together once.
+- Do not generalize from a lyric, translation, or isolated example beyond what the source supports.
+  Prefer a narrower reliable explanation over a broad rule with exceptions left unstated.
+- Link a grammar UUID only to sentences that actually demonstrate that concept. Every linked sentence
+  must agree with the concept's prompt, explanation, and formula.
+- Prefer one strong, representative sentence relationship over several weak or incidental ones.
+- Omit a proposed grammar concept when the source does not support a clear, reliable explanation.
+  A sentence may have an empty `grammar_ids` array.
+
+Good:
+
+```json
+{
+  "id": "40000000-0000-4000-8000-000000000001",
+  "name": "In makita kita, who does kita refer to?",
+  "description": "Kita combines a first-person singular actor with a second-person singular object: ‘I … you.’",
+  "formula": "verb + kita = I [verb] you"
+}
+```
+
+This record presents one question, answers it immediately, and describes the construction shown by
+the linked sentence. By contrast, avoid a broad topic label such as `Pronouns`, a paragraph surveying
+several pronouns, or a formula that does not generate the cited form.
+
 ## Identity, comparison, and corrections
 
 Every lesson, source, vocabulary item, sentence, and grammar concept has a lowercase canonical UUID.
@@ -99,7 +133,11 @@ in Markdown fences and do not create CSV, YAML, Markdown, or additional input fi
 Unicode NFC, lowercase canonical UUIDs, exact enum spelling, JSON arrays for tags and relationships,
 and omit absent optional properties rather than using null. Preserve supplied UUIDs while correcting
 content and generate UUIDv4 only for genuinely new records. Include source provenance, reuse known
-UUIDs for cross-lesson relationships, and produce no unknown properties.
+UUIDs for cross-lesson relationships, and produce no unknown properties. Write each grammar concept
+as one narrow learner-facing recall question with a concise direct answer. Split independently
+testable facts, use formulas only when they accurately describe the linked forms, and associate a
+grammar UUID only with sentences that genuinely demonstrate it. Do not generalize beyond the source
+or create a grammar concept when a clear, reliable explanation is not supported.
 ```
 
 ## Output boundary
